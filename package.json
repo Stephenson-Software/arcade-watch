@@ -1,0 +1,16 @@
+{
+  "name": "arcade-watch",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daily health check for every game on danielstephenson.dev/play",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "watch": "node watch.js"
+  },
+  "dependencies": {
+    "playwright": "1.61.1"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

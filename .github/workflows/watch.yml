@@ -1,0 +1,83 @@
+name: arcade-watch
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # daily, 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      only:
+        description: "Comma-separated slugs to check (empty = everything)"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: read   # to download the previous run's state artifact
+
+concurrency:
+  group: arcade-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+
+      # The previous run's state.json says which checks were already failing,
+      # so the alert can tell new failures from ongoing ones and recoveries.
+      - name: Fetch previous state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p prev
+          for id in $(gh run list -R "$GITHUB_REPOSITORY" --workflow watch.yml --branch main \
+                        --status completed -L 10 --json databaseId -q '.[].databaseId'); do
+            if gh run download "$id" -R "$GITHUB_REPOSITORY" -n state -D prev 2>/dev/null; then
+              echo "previous state from run $id"; break
+            fi
+          done
+          ls prev || true
+
+      - name: Check every game
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          PREV_STATE: prev/state.json
+          OUT_DIR: out
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ONLY: ${{ inputs.only }}
+        run: |
+          if [ -n "$ONLY" ]; then node watch.js --only "$ONLY"; else node watch.js; fi
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: |
+            out/screenshots
+            out/results.json
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: Upload state
+        # Only a full run on main records state: a partial (--only) run must not
+        # hide a failure from the next daily run.
+        if: always() && inputs.only == '' && github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: state
+          path: out/state.json
+          retention-days: 30
+          if-no-files-found: ignore

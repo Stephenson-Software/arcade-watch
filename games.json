@@ -1,0 +1,50 @@
+{
+  "portal": {
+    "url": "https://danielstephenson.dev/play",
+    "tileSelector": "#games [data-testid=catalogue-tile]"
+  },
+  "registry": "https://play.danielstephenson.dev/api/games",
+  "health": "https://api.play.danielstephenson.dev/healthz",
+  "defaults": {
+    "timeoutMs": 90000,
+    "ignore": [
+      "BrowserFS not found",
+      "blanker",
+      "MEDIA USER ACTION REQUIRED",
+      "GL Driver Message",
+      "Unrecognized feature",
+      "allowfullscreen"
+    ],
+    "fatal": ["SuspendError", "fatal", "Traceback", "PythonError"]
+  },
+  "games": {
+    "fishe":         { "type": "tak" },
+    "tidewater":     { "type": "tak" },
+    "overwinter":    { "type": "tak" },
+    "night-ferry":   { "type": "tak" },
+
+    "guess-my-word": { "type": "tak-console", "line": "DICE" },
+    "kreatures":     { "type": "tak-console", "line": "Watcher" },
+    "cave":          { "type": "tak-console", "line": "NO" },
+    "dice":          { "type": "tak-console", "line": "ONCE" },
+
+    "rock-paper-scissors": { "type": "pygbag", "timeoutMs": 150000 },
+    "ophidian":            { "type": "pygbag", "timeoutMs": 150000 },
+    "apex":                { "type": "pygbag", "timeoutMs": 150000 },
+    "tic-tak-toe":         { "type": "pygbag", "timeoutMs": 150000 },
+
+    "frog-hopper":     { "type": "emscripten", "keys": ["ArrowUp", "ArrowLeft", "ArrowUp"], "holdMs": 250 },
+    "tic-tac-toe-sdl": { "type": "emscripten", "clickCanvas": true },
+    "microbiome":      { "type": "emscripten" },
+    "sdl-sketches":    { "type": "emscripten", "path": "bouncing-rectangle.html" },
+
+    "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "#move", "line": "b2", "expect": "\\[X\\]" },
+    "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "line": "stats", "expect": "> stats\\n[\\s\\S]*\\S" },
+
+    "tic-tac-toe-web": { "type": "react-ttt" }
+  },
+  "linkouts": {
+    "roam":   { "title": "Roam", "url": "https://roam.preponderous.org/web/", "type": "canvas", "canvas": "#game-canvas", "readySelector": "#bar.hidden", "errorSelector": "#bar-status.error", "settleMs": 2000, "keys": ["ArrowDown"], "timeoutMs": 150000 },
+    "barony": { "title": "Barony", "url": "https://barony.preponderous.org", "type": "page", "expect": "Log In" }
+  }
+}
