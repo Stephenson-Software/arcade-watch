@@ -1,0 +1,32 @@
+name: test
+
+# Offline PR check. The live health check (watch.yml) loads production games
+# in a browser and posts to Discord, so it stays on its schedule; this job
+# needs no network beyond npm and no secrets.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      # Fails if package-lock.json and package.json disagree. Playwright's npm
+      # package does not download a browser on install.
+      - name: Install
+        run: npm ci
+
+      - name: Syntax and games.json check
+        run: npm test
