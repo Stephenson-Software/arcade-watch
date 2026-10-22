@@ -5,7 +5,8 @@
   "description": "Daily health check for every game on danielstephenson.dev/play",
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
-    "watch": "node watch.js"
+    "watch": "node watch.js",
+    "test": "node --check watch.js && node --check scripts/check-config.js && node scripts/check-config.js"
   },
   "dependencies": {
     "playwright": "1.61.1"

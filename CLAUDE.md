@@ -9,7 +9,7 @@ arcade-watch is a daily health check for every game on <https://danielstephenson
 - Node.js (>= 20 per `package.json` `engines`; CI uses Node 22), CommonJS (`'use strict'`, `require`)
 - Playwright `1.61.1` (pinned exactly in `package.json`), Chromium only
 - GitHub Actions (`.github/workflows/watch.yml`) for scheduling, state artifacts and the job summary
-- No build step, no database, no test framework, no linter config
+- No build step, no database, no test framework, no linter config (`npm test` is a plain-Node offline check)
 
 ## Build and run commands
 
@@ -27,8 +27,8 @@ node watch.js --only tidewater --profiles desktop
 # Full run (every registry game + link-outs + portal/API/alias checks)
 node watch.js            # same as: npm run watch
 
-# Syntax check only (no network)
-node --check watch.js
+# Offline check: syntax + games.json validated against watch.js (no network, no browser)
+npm test
 ```
 
 Results, screenshots, `state.json` and `summary.md` are written to `./out` (gitignored).
@@ -49,7 +49,7 @@ Leave `DISCORD_WEBHOOK_URL` unset when running locally so nothing is posted to t
 
 ## Test commands
 
-There is no unit test suite. Verification is a real run against the live arcade:
+There is no unit test suite. `npm test` is the offline check (what PR CI runs): `node --check` on `watch.js` and `scripts/check-config.js`, then `node scripts/check-config.js`, which fails if a game in `games.json` names a check type that `watch.js` does not define or has a malformed field. Behaviour is verified by a real run against the live arcade:
 
 ```bash
 node watch.js --only <slug> [--profiles desktop,iphone]
@@ -59,14 +59,18 @@ A failing check exits non-zero; a watcher that cannot run at all exits 2.
 
 ## CI
 
-`.github/workflows/watch.yml` runs on a daily cron (`0 6 * * *`) and on `workflow_dispatch` (optional `only` input). It does **not** run on pushes or pull requests, so a PR shows no checks. Only a full run on `main` uploads the `state` artifact; a partial `--only` run must never record state, or it would hide a failure from the next daily run.
+`.github/workflows/test.yml` (job `test`) runs on every pull request and on pushes to `main`: `npm ci` (lockfile must match `package.json`) then `npm test`. It is offline: no browser, no live games, no secrets. This `test` check is the merge gate.
+
+`.github/workflows/watch.yml` runs on a daily cron (`0 6 * * *`) and on `workflow_dispatch` (optional `only` input). It does **not** run on pushes or pull requests. Only a full run on `main` uploads the `state` artifact; a partial `--only` run must never record state, or it would hide a failure from the next daily run.
 
 ## Repository layout
 
 ```
 watch.js        The whole watcher: profiles, CHECKS per game type, retry, portal/API/alias checks, state diff, Discord post, summary
 games.json      Portal/registry/health URLs, defaults (timeoutMs, ignore, fatal), per-game check config, link-out games
+scripts/check-config.js       Offline validation of games.json against the check types in watch.js (npm test)
 .github/workflows/watch.yml   Daily schedule, previous-state download, artifact uploads
+.github/workflows/test.yml    PR/push check: npm ci + npm test
 package.json    Single dependency (playwright)
 LICENSE         Stephenson-NC
 ```
@@ -85,6 +89,7 @@ LICENSE         Stephenson-NC
 - When a game is added to the arcade, add its slug to `games` in `games.json` with a check type (otherwise it only gets a `page` load check and is listed under "Not in games.json").
 - Verify any change with `node watch.js --only <slug>` against the live site before opening a PR, and say which slugs/profiles were run.
 - Keep the `UA_SUFFIX` monitor token: the arcade's play counter uses it to exclude these loads from public play counts.
+- When adding a check type or a new per-game option, extend `scripts/check-config.js` if it needs validating.
 - Keep messages in `defaults.ignore` narrow; only known-benign console lines belong there.
 
 **Don't:**
