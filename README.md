@@ -6,7 +6,7 @@ Every day at 06:00 UTC, a GitHub Actions workflow opens each game in headless Ch
 
 ## What is checked
 
-The game list is read live from the arcade registry, <https://play.danielstephenson.dev/api/games>. The portal's link-out games (Roam and Barony) are added from `games.json`. Each game has a check type:
+The game list is read live from the arcade registry, <https://play.danielstephenson.dev/api/games>. The portal's link-out games (Roam and Barony) are added from `games.json`. If a link-out's slug also appears in the registry, it is counted once: its `linkouts` entry (including its `url`) configures that registry game, and the log notes that the entry should move under `games`. Each game has a check type:
 
 | Type | Games | Passes when |
 |---|---|---|
@@ -20,7 +20,7 @@ The game list is read live from the arcade registry, <https://play.danielstephen
 
 These checks run on every run as well:
 
-- **Portal**: <https://danielstephenson.dev/play> shows exactly as many tiles (`[data-testid=catalogue-tile]`) as there are registry games plus link-outs.
+- **Portal**: <https://danielstephenson.dev/play> shows exactly as many tiles (`[data-testid=catalogue-tile]`) as there are registry games plus the link-outs that are not in the registry.
 - **API**: <https://api.play.danielstephenson.dev/healthz> returns 200.
 - **Aliases**: every `aliases` host in the registry (e.g. `fishe.danielstephenson.dev`) returns 200.
 
