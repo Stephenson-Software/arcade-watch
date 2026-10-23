@@ -2,7 +2,7 @@ name: arcade-watch
 
 on:
   schedule:
-    - cron: "0 6 * * *"   # daily, 06:00 UTC
+    - cron: "0 4 * * *"   # daily, 04:00 UTC (22:00 MDT / 21:00 MST): GitHub starts scheduled runs hours late, and nothing may run 10:00-18:00 Denver
   workflow_dispatch:
     inputs:
       only:
