@@ -8,6 +8,8 @@
 //        OUT_DIR              where results, state and screenshots go (default ./out)
 //        CONCURRENCY          parallel checks (default 4)
 //        RUN_URL              link to this run, used in alerts
+//        GAMES_FILE           alternative to games.json (optional)
+//        GITHUB_STEP_SUMMARY  set by Actions; the results table is appended here
 'use strict';
 
 const fs = require('fs');
@@ -433,17 +435,22 @@ async function main() {
   const profiles = (arg('profiles') || 'desktop,iphone').split(',');
 
   const registry = (await fetchJson(CONFIG.registry)).games;
+  // A link-out that has since joined the registry is one tile and one game:
+  // its entry configures the registry game instead of adding a second one.
+  const linkouts = Object.entries(CONFIG.linkouts).filter(([slug]) => !registry.some((g) => g.slug === slug));
+  const promoted = Object.keys(CONFIG.linkouts).filter((s) => registry.some((g) => g.slug === s));
+  if (promoted.length) console.log(`note: link-outs now in the registry (move them under games): ${promoted.join(', ')}`);
   const games = [];
   for (const g of registry) {
-    const conf = CONFIG.games[g.slug];
+    const conf = CONFIG.games[g.slug] || CONFIG.linkouts[g.slug];
     games.push({
       slug: g.slug, title: g.title, url: g.url, aliases: g.aliases || [],
       ...CONFIG.defaults, ...(conf || { type: 'page', unconfigured: true }),
     });
   }
-  for (const [slug, l] of Object.entries(CONFIG.linkouts)) games.push({ slug, aliases: [], ...CONFIG.defaults, ...l });
+  for (const [slug, l] of linkouts) games.push({ slug, aliases: [], ...CONFIG.defaults, ...l });
   for (const g of games) g.timeoutMs = g.timeoutMs || CONFIG.defaults.timeoutMs;
-  const expectedTiles = registry.length + Object.keys(CONFIG.linkouts).length;
+  const expectedTiles = registry.length + linkouts.length;
   const stale = Object.keys(CONFIG.games).filter((s) => !registry.some((g) => g.slug === s));
   if (stale.length) console.log(`note: in games.json but not in the registry: ${stale.join(', ')}`);
 
