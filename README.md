@@ -10,13 +10,13 @@ The game list is read live from the arcade registry, <https://play.danielstephen
 
 | Type | Games | Passes when |
 |---|---|---|
-| `tak` | FishE, Tidewater, Overwinter, Night Ferry | `#app button` appears; the first enabled button is tapped 3 times and the screen changes each time; no `SuspendError`/`fatal`/`Traceback` in the console |
+| `tak` | FishE, Tidewater, Overwinter, Night Ferry | `#app button` appears; the first enabled button is tapped 3 times and the screen changes each time; no `SuspendError`/`fatal`/`Traceback`/`PythonError` in the console |
 | `tak-console` | Guess My Word, Kreatures, Cave, Simple Dice Throw | `.tak-console-input` becomes enabled; after one line (`line`) is submitted, new output appears |
 | `pygbag` | Rock Paper Scissors, Ophidian, Apex, Tic Tac Toe (pygame) | after a tap on the "Ready to start" overlay, the game sizes its canvas; the canvas picture changes after clicks/keys (screenshot hashes differ) |
 | `emscripten` / `canvas` | Frog Hopper, Tic Tac Toe (SDL), Microbiome, SDL Sketches (bouncing rectangle), Roam | a sized canvas is visible; its picture changes over time or after input (`keys`, `clickCanvas`); optional `readySelector`/`errorSelector` |
 | `cheerpj` | Tic Tac Toe (Java), Interakt | Java enables the input (`input`); one command (`line`) produces output matching `expect` |
 | `react-ttt` | Tic Tac Toe (Web) | clicking squares 0,3,1,4,2 shows "Winner: X" |
-| `page` | Barony (needs an account) | the page loads with HTTP < 400 and shows `expect` |
+| `page` | Barony (needs an account) | the page loads with HTTP < 400 and shows `expect` (without `expect`, any text) |
 
 These checks run on every run as well:
 
@@ -26,9 +26,9 @@ These checks run on every run as well:
 
 Across all games:
 
-- **Console errors.** A console message or page error that matches `defaults.fatal` fails the check. Messages that match `defaults.ignore` are dropped; these are the known-benign pygbag `BrowserFS not found`, `blanker` and `MEDIA USER ACTION REQUIRED` lines, plus WebGL driver notes. Other console errors on a passing check are listed in the run summary but do not fail it.
+- **Console errors.** A console message or page error that matches `defaults.fatal` fails the check. Messages that match `defaults.ignore` are dropped; these are the known-benign pygbag `BrowserFS not found`, `blanker` and `MEDIA USER ACTION REQUIRED` lines, WebGL driver notes, and iframe permission-policy notes (`Unrecognized feature`, `allowfullscreen`). A game's own `ignore` list is added to `defaults.ignore`; a game's own `fatal` list replaces `defaults.fatal`. Other console errors on a passing check are listed in the run summary but do not fail it.
 - **One retry.** A check that fails is retried once in a fresh browser context. If it passes on the retry, the summary marks it `PASS (retry)`, which points to flakiness.
-- **Time budget.** Each attempt has a budget (`timeoutMs`; 90 s by default, 150 s for pygbag and CheerpJ). The checks run 4 at a time, and the workflow is capped at 20 minutes. A full run takes about 2 minutes.
+- **Time budget.** Each attempt has a budget (`timeoutMs`; 90 s by default, 150 s for pygbag, CheerpJ and Roam). The checks run 4 at a time, and the workflow is capped at 20 minutes. A full run takes about 2 minutes.
 - **Unknown games.** A registry game that is not in `games.json` still gets a `page` load check. The summary lists it under "Not in games.json", so it gets noticed and given a real check.
 
 ## Alerting
@@ -64,7 +64,7 @@ Every run writes a table to the job summary (`$GITHUB_STEP_SUMMARY`) with each g
    node watch.js --only my-game --profiles iphone
    ```
 
-   Results, screenshots and `summary.md` are written to `./out`.
+   Results, screenshots and `summary.md` are written to `./out`. `npm test` checks `games.json` against the check types in `watch.js` without a browser or network; it is the check that runs on every pull request.
 4. If none of the check types fits, add a function to `CHECKS` in `watch.js`. It receives `(page, game, ctx)` and throws (via `fail("what went wrong")`) on failure. Use `tap(ctx, locator)` so the iPhone profile taps instead of clicking.
 
 Options by type: `timeoutMs`, `ignore` and `fatal` (any type); `line` (tak-console, cheerpj); `input`, `expect` and `terminal` (cheerpj); `path`, `canvas`, `keys`, `holdMs`, `clickCanvas`, `readySelector`, `errorSelector` and `settleMs` (emscripten/canvas); `expect` (page).
