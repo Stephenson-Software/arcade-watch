@@ -67,7 +67,7 @@ Every run writes a table to the job summary (`$GITHUB_STEP_SUMMARY`) with each g
    Results, screenshots and `summary.md` are written to `./out`. `npm test` checks `games.json` against the check types in `watch.js` without a browser or network; it is the check that runs on every pull request.
 4. If none of the check types fits, add a function to `CHECKS` in `watch.js`. It receives `(page, game, ctx)` and throws (via `fail("what went wrong")`) on failure. Use `tap(ctx, locator)` so the iPhone profile taps instead of clicking.
 
-Options by type: `timeoutMs`, `ignore` and `fatal` (any type); `line` (tak-console, cheerpj); `input`, `expect` and `terminal` (cheerpj); `path`, `canvas`, `keys`, `holdMs`, `clickCanvas`, `readySelector`, `errorSelector` and `settleMs` (emscripten/canvas); `expect` (page).
+Options by type: `timeoutMs`, `ignore` and `fatal` (any type); `line` (tak-console, cheerpj); `input`, `expect` and `terminal` (cheerpj); `path`, `canvas`, `keys`, `holdMs`, `clickCanvas`, `readySelector`, `errorSelector`, `settleMs` and `shotTimeoutMs` (emscripten/canvas; how long one canvas screenshot may wait for a frame, default 15000, raise it for a game whose software-WebGL frames take seconds in CI); `expect` (page).
 
 A run can also be started by hand from the Actions tab (**Run workflow**), optionally limited to some slugs. A limited run does not record state.
 
