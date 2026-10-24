@@ -69,8 +69,10 @@ async function until(fn, ms, msg, every = 500) {
 }
 
 // Hashes of an element (or the viewport) over time until two differ.
-async function waitForChange(page, target, { tries = 6, gapMs = 2000, between } = {}) {
-  const shot = async () => hash(target ? await target.screenshot({ timeout: 15000 }) : await page.screenshot());
+// shotMs: a screenshot waits for the page's next frame, and a game drawn with
+// software WebGL (CI has no GPU) can take seconds per frame (microbiome, 2026-10-23).
+async function waitForChange(page, target, { tries = 6, gapMs = 2000, between, shotMs = 15000 } = {}) {
+  const shot = async () => hash(target ? await target.screenshot({ timeout: shotMs }) : await page.screenshot());
   const first = await shot();
   for (let i = 0; i < tries; i++) {
     if (between) await between(i);
@@ -178,6 +180,7 @@ const CHECKS = {
     ctx.assertNoFatal();
     const changed = await waitForChange(page, canvas, {
       tries: 6,
+      shotMs: game.shotTimeoutMs,
       between: async (i) => {
         if (game.clickCanvas) {
           const b = await canvas.boundingBox();

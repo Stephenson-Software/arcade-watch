@@ -35,7 +35,7 @@
 
     "frog-hopper":     { "type": "emscripten", "keys": ["ArrowUp", "ArrowLeft", "ArrowUp"], "holdMs": 250 },
     "tic-tac-toe-sdl": { "type": "emscripten", "clickCanvas": true },
-    "microbiome":      { "type": "emscripten" },
+    "microbiome":      { "type": "emscripten", "shotTimeoutMs": 60000, "timeoutMs": 180000 },
     "sdl-sketches":    { "type": "emscripten", "path": "bouncing-rectangle.html" },
 
     "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "#move", "line": "b2", "expect": "\\[X\\]" },
