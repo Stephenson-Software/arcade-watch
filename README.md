@@ -2,7 +2,7 @@
 
 A daily health check for every game on [danielstephenson.dev/play](https://danielstephenson.dev/play).
 
-Every day at 06:00 UTC, a GitHub Actions workflow opens each game in headless Chromium, twice: once as a desktop browser and once with Playwright's **iPhone 13** profile. The iPhone profile sends a Mobile Safari user agent and uses touch, so games that sniff the UA (Pyodide does) take their iOS code path. The workflow checks that each game actually **starts** and **responds to input**. Loading the page is not enough to pass. When a check fails, or recovers after failing, it posts to Discord.
+Every day at 04:00 UTC, a GitHub Actions workflow opens each game in headless Chromium, twice: once as a desktop browser and once with Playwright's **iPhone 13** profile. The iPhone profile sends a Mobile Safari user agent and uses touch, so games that sniff the UA (Pyodide does) take their iOS code path. The workflow checks that each game actually **starts** and **responds to input**. Loading the page is not enough to pass. When a check fails, or recovers after failing, it posts to Discord.
 
 ## What is checked
 
@@ -20,7 +20,7 @@ The game list is read live from the arcade registry, <https://play.danielstephen
 
 These checks run on every run as well:
 
-- **Portal**: <https://danielstephenson.dev/play> shows exactly as many tiles (`[data-testid=catalogue-tile]`) as there are registry games plus the link-outs that are not in the registry.
+- **Portal**: <https://danielstephenson.dev/play> shows exactly as many tiles (`#games [data-testid=catalogue-tile]`) as there are registry games plus the link-outs that are not in the registry.
 - **API**: <https://api.play.danielstephenson.dev/healthz> returns 200.
 - **Aliases**: every `aliases` host in the registry (e.g. `fishe.danielstephenson.dev`) returns 200.
 
@@ -28,7 +28,7 @@ Across all games:
 
 - **Console errors.** A console message or page error that matches `defaults.fatal` fails the check. Messages that match `defaults.ignore` are dropped; these are the known-benign pygbag `BrowserFS not found`, `blanker` and `MEDIA USER ACTION REQUIRED` lines, WebGL driver notes, and iframe permission-policy notes (`Unrecognized feature`, `allowfullscreen`). A game's own `ignore` list is added to `defaults.ignore`; a game's own `fatal` list replaces `defaults.fatal`. Other console errors on a passing check are listed in the run summary but do not fail it.
 - **One retry.** A check that fails is retried once in a fresh browser context. If it passes on the retry, the summary marks it `PASS (retry)`, which points to flakiness.
-- **Time budget.** Each attempt has a budget (`timeoutMs`; 90 s by default, 150 s for pygbag, CheerpJ and Roam). The checks run 4 at a time, and the workflow is capped at 20 minutes. A full run takes about 2 minutes.
+- **Time budget.** Each attempt has a budget (`timeoutMs`; 90 s by default, 150 s for pygbag, CheerpJ and Roam, 180 s for Microbiome). The checks run 4 at a time, and the workflow is capped at 20 minutes. A full run takes about 2 minutes.
 - **Unknown games.** A registry game that is not in `games.json` still gets a `page` load check. The summary lists it under "Not in games.json", so it gets noticed and given a real check.
 
 ## Alerting
