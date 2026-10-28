@@ -21,7 +21,7 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30   # 11 Strata pages draw with SwiftShader (no GPU) and take 10-100 s each
     steps:
       - uses: actions/checkout@v4
 
@@ -52,7 +52,8 @@ jobs:
 
       - name: Check every game
         env:
-          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          # Only main alerts: a hand-started run on a branch is a trial.
+          DISCORD_WEBHOOK_URL: ${{ github.ref == 'refs/heads/main' && secrets.DISCORD_WEBHOOK_URL || '' }}
           PREV_STATE: prev/state.json
           OUT_DIR: out
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

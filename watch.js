@@ -89,6 +89,96 @@ async function goto(page, url) {
   return res;
 }
 
+// ---------------------------------------------------------------- strata helpers
+
+// Runs in the page before any of its scripts (strata check only): counts wasm
+// instantiations, WebGL 2 contexts, animation frames and WebGL 2 draw calls.
+function strataProbe() {
+  const st = window.__arcadeWatchStrata = { wasm: 0, webgl2: 0, webgl2Failed: 0, raf: 0, draws: 0 };
+  const getContext = HTMLCanvasElement.prototype.getContext;
+  HTMLCanvasElement.prototype.getContext = function (type, opts) {
+    const c = getContext.call(this, type, opts);
+    if (type === 'webgl2') { if (c) st.webgl2++; else st.webgl2Failed++; }
+    return c;
+  };
+  const raf = window.requestAnimationFrame.bind(window);
+  window.requestAnimationFrame = (cb) => raf((t) => { st.raf++; return cb(t); });
+  const gl = window.WebGL2RenderingContext && window.WebGL2RenderingContext.prototype;
+  for (const m of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) {
+    const f = gl && gl[m];
+    if (f) gl[m] = function () { st.draws++; return f.apply(this, arguments); };
+  }
+  for (const m of ['instantiate', 'instantiateStreaming']) {
+    const f = WebAssembly[m];
+    if (f) WebAssembly[m] = function () { const p = f.apply(this, arguments); p.then(() => { st.wasm++; }, () => {}); return p; };
+  }
+}
+
+// A screenshot straight from CDP: unlike page.screenshot it does not wait for
+// a "stable" frame, which a SwiftShader-drawn page can take seconds to give.
+async function cdpShot(page, clip) {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { data } = await cdp.send('Page.captureScreenshot', clip ? { format: 'png', clip } : { format: 'png' });
+    return Buffer.from(data, 'base64');
+  } finally {
+    await cdp.detach().catch(() => {});
+  }
+}
+
+// A game's test hook: a JS expression that returns an object or a JSON string.
+async function readHook(page, game) {
+  let v;
+  try { v = await page.evaluate(game.hook); } catch (e) { fail(`hook ${game.hook} threw: ${String(e.message || e).split('\n')[0]}`); }
+  if (typeof v === 'string') { try { v = JSON.parse(v); } catch { fail(`hook ${game.hook} returned a string that is not JSON`); } }
+  if (!v || typeof v !== 'object') fail(`hook ${game.hook} returned ${JSON.stringify(v)}`);
+  return v;
+}
+
+// Minimal PNG decoder for Chromium's captures (8-bit RGB/RGBA, not interlaced).
+function decodePng(buf) {
+  const zlib = require('zlib');
+  let pos = 8, width = 0, height = 0, type = 0;
+  const idat = [];
+  while (pos < buf.length) {
+    const len = buf.readUInt32BE(pos), kind = buf.toString('ascii', pos + 4, pos + 8), body = buf.subarray(pos + 8, pos + 8 + len);
+    if (kind === 'IHDR') {
+      width = body.readUInt32BE(0); height = body.readUInt32BE(4); type = body[9];
+      if (body[8] !== 8 || (type !== 2 && type !== 6) || body[12] !== 0) throw new Error(`unsupported PNG (depth ${body[8]}, type ${type}, interlace ${body[12]})`);
+    } else if (kind === 'IDAT') idat.push(body);
+    else if (kind === 'IEND') break;
+    pos += 12 + len;
+  }
+  const bpp = type === 6 ? 4 : 3, stride = width * bpp, raw = zlib.inflateSync(Buffer.concat(idat));
+  const out = Buffer.alloc(stride * height);
+  for (let y = 0; y < height; y++) {
+    const f = raw[y * (stride + 1)], src = y * (stride + 1) + 1, row = y * stride;
+    for (let x = 0; x < stride; x++) {
+      const a = x >= bpp ? out[row + x - bpp] : 0, b = y ? out[row - stride + x] : 0, c = x >= bpp && y ? out[row - stride + x - bpp] : 0;
+      let v = raw[src + x];
+      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+      else if (f === 4) { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
+      out[row + x] = v & 255;
+    }
+  }
+  return { width, height, bpp, data: out };
+}
+
+// Luma standard deviation and a count of distinct (coarsened) colours.
+function pixelStats({ width, height, bpp, data }) {
+  let sum = 0, sq = 0;
+  const colours = new Set();
+  const n = width * height;
+  for (let i = 0; i < n; i++) {
+    const r = data[i * bpp], g = data[i * bpp + 1], b = data[i * bpp + 2];
+    const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    sum += y; sq += y * y;
+    if (colours.size < 4096) colours.add(((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3));
+  }
+  const mean = sum / n;
+  return { stddev: Math.sqrt(Math.max(0, sq / n - mean * mean)), colours: colours.size };
+}
+
 // ---------------------------------------------------------------- checks
 // Each check gets (page, game, ctx) and throws CheckError (or anything) on failure.
 
@@ -231,6 +321,70 @@ const CHECKS = {
     ctx.assertNoFatal();
   },
 
+  // Strata (WebGL 2 + wasm) pages. CI draws with SwiftShader at 1-3 fps, so
+  // this counts frames and reads pixels instead of timing anything: the page
+  // must instantiate wasm, get a WebGL 2 context, keep drawing, show a canvas
+  // that is not one flat colour, log no Strata error and answer its test hook.
+  async strata(page, game, ctx) {
+    const url = game.path ? new URL(game.path, game.url).href : game.url;
+    // 'commit', not 'domcontentloaded': an Emscripten main loop can hold up
+    // the load events for as long as the page runs.
+    const res = await page.goto(url, { waitUntil: 'commit', timeout: 45000 });
+    if (!res) fail(`no response from ${url}`);
+    if (res.status() >= 400) fail(`HTTP ${res.status()} from ${url}`);
+    const probe = () => page.evaluate(() => window.__arcadeWatchStrata);
+    const p0 = await until(async () => {
+      ctx.assertNoFatal();
+      const p = await probe();
+      return p && p.wasm > 0 && p.webgl2 > 0 && p.draws > 0 && p;
+    }, game.timeoutMs * 0.6, 'never instantiated wasm, made a WebGL 2 context and drew', 1000)
+      .catch(async (e) => {
+        if (!(e instanceof CheckError) || !/^never/.test(e.message)) throw e;
+        const bad = ctx.badResponses.length ? `; failed requests: ${ctx.badResponses.join(', ')}` : '';
+        fail(`${e.message} in ${(game.timeoutMs * 0.6 / 1000).toFixed(0)}s (probe ${JSON.stringify(await probe().catch(() => null))}${bad})`);
+      });
+    if (p0.webgl2Failed) ctx.note(`a WebGL 2 context request returned null ${p0.webgl2Failed} time(s)`);
+    ctx.note(`first frame after ${((Date.now() - ctx.started) / 1000).toFixed(1)}s`);
+    if (game.ready) {
+      await until(() => page.evaluate(game.ready), 30000, `never became ready (${game.ready})`, 1000);
+    }
+
+    // Frames advancing: rAF callbacks and WebGL 2 draw calls both keep coming.
+    const minFrames = game.minFrames || 3;
+    const a = await probe();
+    const hook0 = game.hook ? await until(() => readHook(page, game), 30000, `hook ${game.hook} never answered with an object`, 1000) : undefined;
+    const b = await until(async () => {
+      ctx.assertNoFatal();
+      const p = await probe();
+      return p.raf - a.raf >= minFrames && p.draws > a.draws && p;
+    }, game.framesWithinMs || 30000, `fewer than ${minFrames} frames drawn in ${(game.framesWithinMs || 30000) / 1000}s (frozen)`, 1000);
+    ctx.note(`${b.raf - a.raf} frames, ${b.draws - a.draws} draws`);
+
+    // Not blank: a CDP capture of the canvas, decoded here. A Playwright
+    // screenshot waits for a stable frame, which a busy WebGL page may never give.
+    const canvas = page.locator(game.canvas || 'canvas').first();
+    const box = await until(() => canvas.boundingBox(), 10000, 'no visible canvas');
+    if (box.width < 2 || box.height < 2) fail(`canvas is ${box.width}x${box.height}`);
+    const px = pixelStats(decodePng(await cdpShot(page, { ...box, scale: Math.min(1, 320 / box.width) })));
+    ctx.note(`canvas ${Math.round(box.width)}x${Math.round(box.height)}: stddev ${px.stddev.toFixed(1)}, ${px.colours} colours`);
+    const minStddev = game.minStddev || 6;
+    if (px.stddev < minStddev) fail(`canvas looks blank (luma stddev ${px.stddev.toFixed(1)} < ${minStddev}, ${px.colours} colours)`);
+
+    // The test hook answers, and any counter it names has moved on.
+    if (game.hook) {
+      const h = await readHook(page, game);
+      for (const [k, v] of Object.entries(game.hookExpect || {})) {
+        if (JSON.stringify(h[k]) !== JSON.stringify(v)) fail(`hook ${k} is ${JSON.stringify(h[k])}, expected ${JSON.stringify(v)}`);
+      }
+      if (game.advance) {
+        const before = hook0[game.advance], after = h[game.advance];
+        if (!(typeof after === 'number' && after > before)) fail(`hook ${game.advance} did not advance (${before} -> ${after})`);
+        ctx.note(`${game.advance} ${before} -> ${after}`);
+      }
+    }
+    ctx.assertNoFatal();
+  },
+
   // Just the page: it loads and shows the expected text.
   async page(page, game, ctx) {
     await goto(page, game.url);
@@ -250,6 +404,10 @@ function compile(list) {
   return (list || []).map((s) => new RegExp(s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
 }
 const IGNORE = compile(CONFIG.defaults.ignore);
+// Strata logs through stderr, which Emscripten sends to console.warn, so these
+// fail a strata check whatever the console level: Strata's own error lines,
+// its error codes, and a failed strata_* call reported by the page.
+const STRATA_FATAL = [/\bstrata error:/i, /\bSTRATA_ERROR_\w+/, /\bstrata_\w+\b.*\b(fail(ed|s)?|error)\b/i];
 
 async function attempt(browser, game, profile) {
   const touch = !!PROFILES[profile].hasTouch;
@@ -257,7 +415,14 @@ async function attempt(browser, game, profile) {
   const page = await context.newPage();
   const errors = [];
   const notes = [];
-  const fatal = compile(game.fatal || CONFIG.defaults.fatal);
+  const fatal = compile(game.fatal || CONFIG.defaults.fatal).concat(game.type === 'strata' ? STRATA_FATAL : []);
+  const badResponses = [];
+  if (game.type === 'strata') {
+    await page.addInitScript(strataProbe);
+    // A stalled load is easier to read with the requests that went wrong.
+    page.on('response', (r) => { if (r.status() >= 400 && badResponses.length < 5) badResponses.push(`${r.status()} ${r.url().replace(/^https?:\/\/[^/]+/, '')}`); });
+    page.on('requestfailed', (r) => { if (badResponses.length < 5) badResponses.push(`${(r.failure() || {}).errorText} ${r.url().replace(/^https?:\/\/[^/]+/, '')}`); });
+  }
   const ignore = IGNORE.concat(compile(game.ignore));
   const record = (kind, text) => {
     if (ignore.some((r) => r.test(text))) return;
@@ -265,8 +430,11 @@ async function attempt(browser, game, profile) {
   };
   page.on('console', (m) => { if (m.type() === 'error') record('console.error', m.text()); else if (fatal.some((r) => r.test(m.text()))) record(`console.${m.type()}`, m.text()); });
   page.on('pageerror', (e) => record('pageerror', String(e && e.message || e)));
+  const started = Date.now();
   const ctx = {
     touch,
+    started,
+    badResponses,
     note: (n) => notes.push(n),
     assertNoFatal() {
       const bad = errors.find((e) => fatal.some((r) => r.test(e.text)));
@@ -274,7 +442,6 @@ async function attempt(browser, game, profile) {
     },
   };
   let timer;
-  const started = Date.now();
   try {
     await Promise.race([
       CHECKS[game.type](page, game, ctx),
@@ -295,7 +462,9 @@ async function runCheck(browser, game, profile) {
   const tries = [];
   for (let n = 1; n <= 2; n++) {
     r = await attempt(browser, game, profile);
-    await r.page.screenshot({ path: shot, timeout: 10000 }).catch(() => {});
+    if (game.type === 'strata') {
+      await Promise.race([cdpShot(r.page).then((b) => fs.writeFileSync(shot, b)), sleep(15000)]).catch(() => {});
+    } else await r.page.screenshot({ path: shot, timeout: 10000 }).catch(() => {});
     await r.context.close().catch(() => {});
     tries.push(r.ok ? 'pass' : r.error);
     if (r.ok) break;
