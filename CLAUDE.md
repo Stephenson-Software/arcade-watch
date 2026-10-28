@@ -41,6 +41,7 @@ Environment variables read by `watch.js` (all optional locally):
 | `PREV_STATE` | Path to the previous run's `state.json`, used to tell new failures from ongoing ones. |
 | `OUT_DIR` | Output directory (default `./out`). |
 | `CONCURRENCY` | Parallel checks (default 4). |
+| `STRATA_CONCURRENCY` | Parallel `strata` checks, run in their own lane beside the others (default 1: several MB of wasm per page, and a burst once ran the gateway's Traefik out of memory). |
 | `RUN_URL` | Link to the run, included in alerts. |
 | `GAMES_FILE` | Alternative to `games.json`. |
 | `GITHUB_STEP_SUMMARY` | Set by Actions; the results table is appended here. |
@@ -61,7 +62,7 @@ A failing check exits non-zero; a watcher that cannot run at all exits 2.
 
 `.github/workflows/test.yml` (job `test`) runs on every pull request and on pushes to `main`: `npm ci` (lockfile must match `package.json`) then `npm test`. It is offline: no browser, no live games, no secrets. This `test` check is the merge gate.
 
-`.github/workflows/watch.yml` runs on a daily cron (`0 6 * * *`) and on `workflow_dispatch` (optional `only` input). It does **not** run on pushes or pull requests. Only a full run on `main` uploads the `state` artifact; a partial `--only` run must never record state, or it would hide a failure from the next daily run.
+`.github/workflows/watch.yml` runs on a daily cron (`0 4 * * *`; nothing may run 10:00-18:00 Denver, and GitHub starts scheduled runs hours late) and on `workflow_dispatch` (optional `only` input). It does **not** run on pushes or pull requests. Only runs on `main` get `DISCORD_WEBHOOK_URL`, so a branch dispatch can be used to try a change without alerting. Only a full run on `main` uploads the `state` artifact; a partial `--only` run must never record state, or it would hide a failure from the next daily run.
 
 ## Repository layout
 
@@ -80,6 +81,7 @@ LICENSE         Stephenson-NC
 - Plain CommonJS JavaScript, 2-space indent, single quotes, semicolons, `camelCase` functions, `UPPER_CASE` module-level constants.
 - A check type is a function in the `CHECKS` object in `watch.js` with signature `(page, game, ctx)`. It signals failure with `fail("what went wrong")` (throws `CheckError`).
 - Use `tap(ctx, locator)` rather than `locator.click()` so the iPhone profile taps.
+- Strata (WebGL 2) pages use the `strata` check: open with `waitUntil: 'commit'`, count frames with the init-script probe and capture with `cdpShot` (CDP `Page.captureScreenshot`). Never assert a frame rate: CI draws with SwiftShader at 1-3 fps.
 - Use the `until(...)` / `waitForChange(...)` helpers for polling instead of fixed sleeps where possible.
 - Per-game options live in `games.json`, not in code. The game list itself comes live from the registry (`/api/games`); `games.json` only adds check config and link-outs.
 

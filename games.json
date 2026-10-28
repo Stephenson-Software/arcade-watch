@@ -35,13 +35,24 @@
 
     "frog-hopper":     { "type": "emscripten", "keys": ["ArrowUp", "ArrowLeft", "ArrowUp"], "holdMs": 250 },
     "tic-tac-toe-sdl": { "type": "emscripten", "clickCanvas": true },
-    "microbiome":      { "type": "emscripten", "shotTimeoutMs": 60000, "timeoutMs": 180000 },
     "sdl-sketches":    { "type": "emscripten", "path": "bouncing-rectangle.html" },
 
     "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "#move", "line": "b2", "expect": "\\[X\\]" },
     "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "line": "stats", "expect": "> stats\\n[\\s\\S]*\\S" },
 
-    "tic-tac-toe-web": { "type": "react-ttt" }
+    "tic-tac-toe-web": { "type": "react-ttt" },
+
+    "asn1-viz":       { "type": "strata", "timeoutMs": 120000, "hook": "window.asn1viz.status()" },
+    "atman":          { "type": "strata", "timeoutMs": 180000, "hook": "window.atman.status()", "advance": "tick" },
+    "beyond-nations": { "type": "strata", "timeoutMs": 120000, "path": "?start-screen=world&seed=42&no-saves=1", "canvas": "#game", "hook": "window.beyondNations.status()", "advance": "tick", "hookExpect": { "renderer": "strata", "world": true } },
+    "env-lib-cpp":    { "type": "strata", "timeoutMs": 120000, "hook": "window.envlib.status()", "advance": "tick" },
+    "familiar":       { "type": "strata", "timeoutMs": 120000, "hook": "window.familiar.status()", "advance": "tick" },
+    "kindling":       { "type": "strata", "timeoutMs": 120000, "hook": "window.kindling.status()", "advance": "tick" },
+    "microbiome":     { "type": "strata", "timeoutMs": 180000, "ready": "window.mbReady === true" },
+    "orrery":         { "type": "strata", "timeoutMs": 120000, "ready": "window.orreryReady === true", "hook": "window.orrery.status()", "advance": "frames" },
+    "replay-player":  { "type": "strata", "timeoutMs": 120000, "canvas": "#view", "ready": "!!(window.__usdWebReplay && window.__usdWebReplay.ready)", "hook": "JSON.stringify(window.__usdWebReplay)", "advance": "frames", "hookExpect": { "engine": "strata", "errors": [] } },
+    "steading":       { "type": "strata", "timeoutMs": 120000, "hook": "window.steading.status()", "advance": "tick" },
+    "viron-strata":   { "type": "strata", "timeoutMs": 120000, "hook": "window.vironStrata.status()", "advance": "requests" }
   },
   "linkouts": {
     "roam":   { "title": "Roam", "url": "https://roam.preponderous.org/web/", "type": "canvas", "canvas": "#game-canvas", "readySelector": "#bar.hidden", "errorSelector": "#bar-status.error", "settleMs": 2000, "keys": ["ArrowDown"], "timeoutMs": 150000 },
