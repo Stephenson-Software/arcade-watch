@@ -41,6 +41,7 @@ Environment variables read by `watch.js` (all optional locally):
 | `PREV_STATE` | Path to the previous run's `state.json`, used to tell new failures from ongoing ones. |
 | `OUT_DIR` | Output directory (default `./out`). |
 | `CONCURRENCY` | Parallel checks (default 4). |
+| `STRATA_CONCURRENCY` | Parallel `strata` checks, run in their own lane beside the others (default 1: several MB of wasm per page, and a burst once ran the gateway's Traefik out of memory). |
 | `RUN_URL` | Link to the run, included in alerts. |
 | `GAMES_FILE` | Alternative to `games.json`. |
 | `GITHUB_STEP_SUMMARY` | Set by Actions; the results table is appended here. |

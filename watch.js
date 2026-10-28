@@ -7,6 +7,7 @@
 //        PREV_STATE           path to the previous run's state.json (optional)
 //        OUT_DIR              where results, state and screenshots go (default ./out)
 //        CONCURRENCY          parallel checks (default 4)
+//        STRATA_CONCURRENCY   parallel strata checks, a lane beside the others (default 1)
 //        RUN_URL              link to this run, used in alerts
 //        GAMES_FILE           alternative to games.json (optional)
 //        GITHUB_STEP_SUMMARY  set by Actions; the results table is appended here
@@ -21,6 +22,7 @@ const CONFIG = JSON.parse(fs.readFileSync(process.env.GAMES_FILE || path.join(__
 const OUT_DIR = path.resolve(process.env.OUT_DIR || 'out');
 const SHOTS = path.join(OUT_DIR, 'screenshots');
 const CONCURRENCY = Number(process.env.CONCURRENCY || 4);
+const STRATA_CONCURRENCY = Number(process.env.STRATA_CONCURRENCY || 1);
 const RUN_URL = process.env.RUN_URL || '';
 
 // The UA keeps the device's real one (games sniff it) and appends a token the
@@ -639,7 +641,14 @@ async function main() {
     results.push(await portalCheck(browser, expectedTiles));
     for (const g of selected) for (const a of g.aliases) results.push(await httpCheck(`alias:${a}`, `${g.title} alias ${a}`, `https://${a}/`));
   }
-  results.push(...await pool(jobs, CONCURRENCY, ([g, p]) => runCheck(browser, g, p)));
+  // Strata pages pull several MB of wasm each and the gateway compresses it on
+  // the fly; loading many at once once ran Traefik out of memory. They get a
+  // lane of their own, STRATA_CONCURRENCY wide, beside the other checks.
+  const strataJobs = jobs.filter(([g]) => g.type === 'strata');
+  const otherJobs = jobs.filter(([g]) => g.type !== 'strata');
+  const run = ([g, p]) => runCheck(browser, g, p);
+  const lanes = await Promise.all([pool(otherJobs, CONCURRENCY, run), pool(strataJobs, STRATA_CONCURRENCY, run)]);
+  results.push(...lanes.flat());
   await browser.close();
 
   const meta = { ms: Date.now() - t0, when: new Date().toISOString() };
