@@ -29,7 +29,7 @@ Across all games:
 
 - **Console errors.** A console message or page error that matches `defaults.fatal` fails the check. Messages that match `defaults.ignore` are dropped; these are the known-benign pygbag `BrowserFS not found`, `blanker` and `MEDIA USER ACTION REQUIRED` lines, WebGL driver notes, and iframe permission-policy notes (`Unrecognized feature`, `allowfullscreen`). A game's own `ignore` list is added to `defaults.ignore`; a game's own `fatal` list replaces `defaults.fatal`. Other console errors on a passing check are listed in the run summary but do not fail it.
 - **One retry.** A check that fails is retried once in a fresh browser context. If it passes on the retry, the summary marks it `PASS (retry)`, which points to flakiness.
-- **Time budget.** Each attempt has a budget (`timeoutMs`; 90 s by default, 150 s for pygbag, CheerpJ and Roam, 120 s for Strata pages, 180 s for Atman and Microbiome). The checks run 4 at a time, and the workflow is capped at 30 minutes. A full run took about 2.5 minutes before the Strata checks; they add roughly 5 to 8 minutes.
+- **Time budget.** Each attempt has a budget (`timeoutMs`; 90 s by default, 150 s for pygbag, CheerpJ and Roam, 120 s for Strata pages, 180 s for Atman and Microbiome). Strata pages are checked one at a time (`STRATA_CONCURRENCY`), in a lane of their own beside the other checks, which run 4 at a time (`CONCURRENCY`). The workflow is capped at 30 minutes. A full run took about 2.5 minutes before the Strata checks; they add roughly 5 to 8 minutes.
 - **Unknown games.** A registry game that is not in `games.json` still gets a `page` load check. The summary lists it under "Not in games.json", so it gets noticed and given a real check.
 
 ## Alerting
