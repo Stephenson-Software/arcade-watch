@@ -32,6 +32,7 @@ if (types.size === 0) err('no check types found in watch.js (did the CHECKS layo
 
 const isUrl = (u) => { try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; } };
 const isStrList = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
+const REQUIRED = { 'tak-console': ['line'], cheerpj: ['input', 'line', 'expect'] };
 
 for (const key of ['registry', 'health']) if (!isUrl(config[key])) err(`${key}: not an http(s) URL`);
 if (!config.portal || !isUrl(config.portal.url)) err('portal.url: not an http(s) URL');
@@ -55,6 +56,13 @@ function checkGame(where, g, isLinkout) {
   for (const k of ['line', 'expect', 'canvas', 'readySelector', 'errorSelector', 'path', 'ready', 'hook', 'advance']) if (k in g && typeof g[k] !== 'string') err(`${where}: ${k} must be a string`);
   if ('hookExpect' in g && (!g.hookExpect || typeof g.hookExpect !== 'object' || Array.isArray(g.hookExpect))) err(`${where}: hookExpect must be an object of field: value`);
   if (('advance' in g || 'hookExpect' in g) && !('hook' in g)) err(`${where}: advance and hookExpect need a hook`);
+  if ('clickCanvas' in g && typeof g.clickCanvas !== 'boolean') err(`${where}: clickCanvas must be true or false`);
+  // Fields a check cannot run without. A cheerpj check with no `expect` would
+  // build new RegExp(undefined), which matches anything and passes at once.
+  for (const k of REQUIRED[g.type] || []) if (!(k in g)) err(`${where}: a ${g.type} check needs ${k}`);
+  if (g.type === 'cheerpj' && typeof g.expect === 'string') {
+    try { new RegExp(g.expect); } catch (e) { err(`${where}: expect is not a valid regular expression (${e.message})`); }
+  }
 }
 
 if (!config.games || typeof config.games !== 'object') err('games: missing');
