@@ -57,9 +57,10 @@ function checkGame(where, g, isLinkout) {
   if ('hookExpect' in g && (!g.hookExpect || typeof g.hookExpect !== 'object' || Array.isArray(g.hookExpect))) err(`${where}: hookExpect must be an object of field: value`);
   if (('advance' in g || 'hookExpect' in g) && !('hook' in g)) err(`${where}: advance and hookExpect need a hook`);
   if ('clickCanvas' in g && typeof g.clickCanvas !== 'boolean') err(`${where}: clickCanvas must be true or false`);
-  // Fields a check cannot run without. A cheerpj check with no `expect` would
-  // build new RegExp(undefined), which matches anything and passes at once.
-  for (const k of REQUIRED[g.type] || []) if (!(k in g)) err(`${where}: a ${g.type} check needs ${k}`);
+  // Fields a check cannot run without. A cheerpj check with no `expect`, or an
+  // empty one, builds a RegExp that matches anything and passes at once; an
+  // empty `input` makes the locator `:enabled`, the first enabled element.
+  for (const k of REQUIRED[g.type] || []) if (!(k in g) || (typeof g[k] === 'string' && !g[k].trim())) err(`${where}: a ${g.type} check needs a non-empty ${k}`);
   if (g.type === 'cheerpj' && typeof g.expect === 'string') {
     try { new RegExp(g.expect); } catch (e) { err(`${where}: expect is not a valid regular expression (${e.message})`); }
   }
