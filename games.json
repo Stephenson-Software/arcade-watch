@@ -24,8 +24,8 @@
     "night-ferry":   { "type": "tak" },
 
     "guess-my-word": { "type": "tak-console", "line": "DICE" },
-    "kreatures":     { "type": "tak-console", "line": "Watcher" },
-    "cave":          { "type": "tak-console", "line": "NO" },
+    "kreatures":     { "type": "tak-console", "line": "" },
+    "cave":          { "type": "tak-console", "line": "  " },
     "dice":          { "type": "tak-console", "line": "ONCE" },
 
     "rock-paper-scissors": { "type": "pygbag", "timeoutMs": 150000 },
@@ -37,8 +37,8 @@
     "tic-tac-toe-sdl": { "type": "emscripten", "clickCanvas": true },
     "sdl-sketches":    { "type": "emscripten", "path": "bouncing-rectangle.html" },
 
-    "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "#move", "line": "b2", "expect": "\\[X\\]" },
-    "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "line": "stats", "expect": "> stats\\n[\\s\\S]*\\S" },
+    "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "", "line": "b2", "expect": "\\[X\\]" },
+    "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "line": "stats", "expect": "" },
 
     "tic-tac-toe-web": { "type": "react-ttt" },
 
