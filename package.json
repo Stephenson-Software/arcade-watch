@@ -6,7 +6,7 @@
   "license": "SEE LICENSE IN LICENSE",
   "scripts": {
     "watch": "node watch.js",
-    "test": "node --check watch.js && node --check scripts/check-config.js && node scripts/check-config.js"
+    "test": "node --check watch.js && node --check scripts/check-config.js && node scripts/check-config.js && node scripts/experiment-until.js"
   },
   "dependencies": {
     "playwright": "1.61.1"
