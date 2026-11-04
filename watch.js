@@ -59,13 +59,11 @@ async function tap(ctx, locator) {
 }
 
 // Waits until fn() returns truthy, polling; fails with msg on timeout.
-// A thrown error means "not yet" (the page may be mid-navigation), but a
-// CheckError is fn's verdict, so it ends the wait.
 async function until(fn, ms, msg, every = 500) {
   const end = Date.now() + ms;
   for (;;) {
     let v;
-    try { v = await fn(); } catch (e) { if (e instanceof CheckError) throw e; v = undefined; }
+    try { v = await fn(); } catch (e) { v = undefined; }
     if (v) return v;
     if (Date.now() > end) fail(msg);
     await sleep(every);
@@ -356,8 +354,7 @@ const CHECKS = {
     // Frames advancing: rAF callbacks and WebGL 2 draw calls both keep coming.
     const minFrames = game.minFrames || 3;
     const a = await probe();
-    // readHook fails while the hook does not exist yet: here that means keep polling.
-    const hook0 = game.hook ? await until(() => readHook(page, game).catch(() => undefined), 30000, `hook ${game.hook} never answered with an object`, 1000) : undefined;
+    const hook0 = game.hook ? await until(() => readHook(page, game), 30000, `hook ${game.hook} never answered with an object`, 1000) : undefined;
     const b = await until(async () => {
       ctx.assertNoFatal();
       const p = await probe();
