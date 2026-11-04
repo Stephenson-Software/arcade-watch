@@ -6,7 +6,7 @@ Every day at 04:00 UTC, a GitHub Actions workflow opens each game in headless Ch
 
 ## What is checked
 
-The game list is read live from the arcade registry, <https://play.danielstephenson.dev/api/games>. The portal's link-out games (Roam and Barony) are added from `games.json`. If a link-out's slug also appears in the registry, it is counted once: its `linkouts` entry (including its `url`) configures that registry game, and the log notes that the entry should move under `games`. Each game has a check type:
+The game list is read live from the arcade registry, <https://play.danielstephenson.dev/api/games>. The portal's link-out games (currently Barony) are added from `games.json`. If a link-out's slug also appears in the registry, it is counted once: its `linkouts` entry (including its `url`) configures that registry game, and the log notes that the entry should move under `games`. Each game has a check type:
 
 | Type | Games | Passes when |
 |---|---|---|
