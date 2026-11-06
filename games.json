@@ -36,6 +36,7 @@
     "frog-hopper":     { "type": "emscripten", "keys": ["ArrowUp", "ArrowLeft", "ArrowUp"], "holdMs": 250 },
     "tic-tac-toe-sdl": { "type": "emscripten", "clickCanvas": true },
     "sdl-sketches":    { "type": "emscripten", "path": "bouncing-rectangle.html" },
+    "roam":            { "type": "canvas", "canvas": "#game-canvas", "readySelector": "#bar.hidden", "errorSelector": "#bar-status.error", "settleMs": 2000, "keys": ["ArrowDown"], "timeoutMs": 150000 },
 
     "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "#move", "line": "b2", "expect": "\\[X\\]" },
     "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "line": "stats", "expect": "> stats\\n[\\s\\S]*\\S" },
@@ -55,7 +56,6 @@
     "viron-strata":   { "type": "strata", "timeoutMs": 120000, "hook": "window.vironStrata.status()", "advance": "requests" }
   },
   "linkouts": {
-    "roam":   { "title": "Roam", "url": "https://roam.preponderous.org/web/", "type": "canvas", "canvas": "#game-canvas", "readySelector": "#bar.hidden", "errorSelector": "#bar-status.error", "settleMs": 2000, "keys": ["ArrowDown"], "timeoutMs": 150000 },
     "barony": { "title": "Barony", "url": "https://barony.preponderous.org", "type": "page", "expect": "Log In" }
   }
 }
