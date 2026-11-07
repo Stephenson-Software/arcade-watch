@@ -53,10 +53,7 @@ function checkGame(where, g, isLinkout) {
   if ('timeoutMs' in g && (!Number.isFinite(g.timeoutMs) || g.timeoutMs <= 5000)) err(`${where}: timeoutMs must be a number above 5000`);
   for (const k of ['settleMs', 'holdMs', 'shotTimeoutMs', 'minFrames', 'framesWithinMs', 'minStddev']) if (k in g && !Number.isFinite(g[k])) err(`${where}: ${k} must be a number`);
   for (const k of ['keys', 'ignore', 'fatal']) if (k in g && !isStrList(g[k])) err(`${where}: ${k} must be a list of strings`);
-  for (const k of ['line', 'expect', 'input', 'terminal', 'canvas', 'readySelector', 'errorSelector', 'path', 'ready', 'hook', 'advance']) if (k in g && typeof g[k] !== 'string') err(`${where}: ${k} must be a string`);
-  // watch.js reads `game.terminal || '#terminal'`, so a blank value would watch
-  // the default element instead of failing.
-  if (typeof g.terminal === 'string' && !g.terminal.trim()) err(`${where}: terminal must not be blank`);
+  for (const k of ['line', 'expect', 'canvas', 'readySelector', 'errorSelector', 'path', 'ready', 'hook', 'advance']) if (k in g && typeof g[k] !== 'string') err(`${where}: ${k} must be a string`);
   if ('hookExpect' in g && (!g.hookExpect || typeof g.hookExpect !== 'object' || Array.isArray(g.hookExpect))) err(`${where}: hookExpect must be an object of field: value`);
   if (('advance' in g || 'hookExpect' in g) && !('hook' in g)) err(`${where}: advance and hookExpect need a hook`);
   if ('clickCanvas' in g && typeof g.clickCanvas !== 'boolean') err(`${where}: clickCanvas must be true or false`);
