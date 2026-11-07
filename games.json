@@ -38,8 +38,8 @@
     "sdl-sketches":    { "type": "emscripten", "path": "bouncing-rectangle.html" },
     "roam":            { "type": "canvas", "canvas": "#game-canvas", "readySelector": "#bar.hidden", "errorSelector": "#bar-status.error", "settleMs": 2000, "keys": ["ArrowDown"], "timeoutMs": 150000 },
 
-    "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": "#move", "line": "b2", "expect": "\\[X\\]" },
-    "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "line": "stats", "expect": "> stats\\n[\\s\\S]*\\S" },
+    "tic-tac-toe-java": { "type": "cheerpj", "timeoutMs": 150000, "input": 5, "terminal": 5, "line": "b2", "expect": "\\[X\\]" },
+    "interakt":         { "type": "cheerpj", "timeoutMs": 150000, "input": "#command", "terminal": "  ", "line": "stats", "expect": "> stats\\n[\\s\\S]*\\S" },
 
     "tic-tac-toe-web": { "type": "react-ttt" },
 
