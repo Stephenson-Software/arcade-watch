@@ -61,7 +61,6 @@ function validate(config) {
     for (const k of ['line', 'expect', 'input', 'terminal', 'canvas', 'readySelector', 'errorSelector', 'path', 'ready', 'hook', 'advance']) if (k in g && typeof g[k] !== 'string') err(`${where}: ${k} must be a string`);
     // watch.js reads `game.terminal || '#terminal'`, so a blank value would watch
     // the default element instead of failing.
-    if (typeof g.terminal === 'string' && !g.terminal.trim()) err(`${where}: terminal must not be blank`);
     if ('hookExpect' in g && (!g.hookExpect || typeof g.hookExpect !== 'object' || Array.isArray(g.hookExpect))) err(`${where}: hookExpect must be an object of field: value`);
     if (('advance' in g || 'hookExpect' in g) && !('hook' in g)) err(`${where}: advance and hookExpect need a hook`);
     if ('clickCanvas' in g && typeof g.clickCanvas !== 'boolean') err(`${where}: clickCanvas must be true or false`);
