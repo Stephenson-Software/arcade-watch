@@ -25,9 +25,10 @@ const CONCURRENCY = Number(process.env.CONCURRENCY || 4);
 const STRATA_CONCURRENCY = Number(process.env.STRATA_CONCURRENCY || 1);
 const RUN_URL = process.env.RUN_URL || '';
 
-// The UA keeps the device's real one (games sniff it) and appends a token the
-// arcade's play counter treats as "not a person" (it matches /monitor/), so
-// these daily loads do not inflate the play counts shown on the portal.
+// Every browser context gets the device's real UA (games sniff it: the iPhone
+// profile's Mobile Safari token must stay intact) with this appended. The
+// arcade's play counter treats a UA containing "arcade-watch" (or "monitor")
+// as not a person, so these daily loads do not inflate the portal's play counts.
 const UA_SUFFIX = ' arcade-watch-monitor (+https://github.com/Stephenson-Software/arcade-watch)';
 function strip(dev) {
   const { defaultBrowserType, ...rest } = dev; // eslint-disable-line no-unused-vars
@@ -325,6 +326,23 @@ const CHECKS = {
     ctx.assertNoFatal();
   },
 
+  // tak console programs that take no input: they print and end on their own.
+  // The screen must reach output matching `expect` (which should include the
+  // runner's end line) without a traceback on the screen or a fatal console line.
+  async 'tak-output'(page, game, ctx) {
+    await goto(page, game.url);
+    const screen = page.locator('.tak-console-screen');
+    await screen.waitFor({ timeout: 30000 }).catch(() => fail('no .tak-console-screen (tak console never started)'));
+    const re = new RegExp(game.expect);
+    await until(async () => {
+      ctx.assertNoFatal();
+      const now = await screen.innerText();
+      if (/Traceback \(most recent call last\)/.test(now)) fail(`the program crashed: ${now.slice(now.indexOf('Traceback'), now.indexOf('Traceback') + 200)}`);
+      return re.test(now);
+    }, game.timeoutMs - 10000, `screen never showed output matching /${game.expect}/`, 1000);
+    ctx.assertNoFatal();
+  },
+
   // Strata (WebGL 2 + wasm) pages. CI draws with SwiftShader at 1-3 fps, so
   // this counts frames and reads pixels instead of timing anything: the page
   // must instantiate wasm, get a WebGL 2 context, keep drawing, show a canvas
@@ -358,6 +376,12 @@ const CHECKS = {
     const a = await probe();
     // readHook fails while the hook does not exist yet: here that means keep polling.
     const hook0 = game.hook ? await until(() => readHook(page, game).catch(() => undefined), 30000, `hook ${game.hook} never answered with an object`, 1000) : undefined;
+    // A game that idles on a title screen gets one action (start it, drop an
+    // ingredient...) so its `advance` counter has a reason to move.
+    if (game.act) {
+      try { await page.evaluate(game.act); } catch (e) { fail(`act ${game.act} threw: ${String(e.message || e).split('\n')[0]}`); }
+      ctx.note(`act: ${game.act}`);
+    }
     const b = await until(async () => {
       ctx.assertNoFatal();
       const p = await probe();
@@ -605,11 +629,36 @@ function alertText(s) {
 
 // ---------------------------------------------------------------- main
 
+// A bad command line: reported without a Discord post (it is the caller's
+// typo, not a broken arcade) and exits 2.
+class UsageError extends Error {}
+
+// The games a run checks. Every --only slug must name a game: a typo would
+// otherwise check nothing (or only the other half of the list) and pass.
+function selectGames(games, only) {
+  if (!only) return games;
+  if (!only.length) throw new UsageError('--only was given no slugs');
+  const unknown = only.filter((s) => !games.some((g) => g.slug === s));
+  if (unknown.length) {
+    throw new UsageError(`--only: no game with slug ${unknown.map((s) => `"${s}"`).join(', ')} (known: ${games.map((g) => g.slug).sort().join(', ')})`);
+  }
+  return games.filter((g) => only.includes(g.slug));
+}
+
+function parseProfiles(value) {
+  const profiles = (value || 'desktop,iphone').split(',').map((s) => s.trim()).filter(Boolean);
+  const unknown = profiles.filter((p) => !PROFILES[p]);
+  if (!profiles.length || unknown.length) throw new UsageError(`--profiles: unknown profile ${unknown.map((s) => `"${s}"`).join(', ') || '(none given)'} (known: ${Object.keys(PROFILES).join(', ')})`);
+  return profiles;
+}
+
 async function main() {
   const t0 = Date.now();
   fs.mkdirSync(SHOTS, { recursive: true });
-  const only = arg('only') ? arg('only').split(',') : null;
-  const profiles = (arg('profiles') || 'desktop,iphone').split(',');
+  const onlyArg = arg('only');
+  if (process.argv.includes('--only') && (onlyArg === undefined || onlyArg.startsWith('--'))) throw new UsageError('--only needs a comma-separated list of slugs');
+  const only = onlyArg !== undefined ? onlyArg.split(',').map((s) => s.trim()).filter(Boolean) : null;
+  const profiles = parseProfiles(arg('profiles'));
 
   const registry = (await fetchJson(CONFIG.registry)).games;
   // A link-out that has since joined the registry is one tile and one game:
@@ -631,7 +680,7 @@ async function main() {
   const stale = Object.keys(CONFIG.games).filter((s) => !registry.some((g) => g.slug === s));
   if (stale.length) console.log(`note: in games.json but not in the registry: ${stale.join(', ')}`);
 
-  const selected = only ? games.filter((g) => only.includes(g.slug)) : games;
+  const selected = selectGames(games, only);
   const jobs = [];
   for (const g of selected) for (const p of profiles) jobs.push([g, p]);
   // Heaviest first so the slow ones do not trail at the end.
@@ -676,7 +725,14 @@ async function main() {
   process.exitCode = s.failing.length ? 1 : 0;
 }
 
-main().catch(async (e) => {
+if (require.main !== module) {
+  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles };
+} else main().catch(async (e) => {
+  if (e instanceof UsageError) {
+    console.error(`arcade-watch: ${e.message}`);
+    process.exitCode = 2;
+    return;
+  }
   // The watcher itself broke (registry unreachable, browser would not start...):
   // that is worth an alert too, or a dead registry would go unnoticed.
   console.error(e);

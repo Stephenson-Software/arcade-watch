@@ -28,6 +28,10 @@
     "cave":          { "type": "tak-console", "line": "NO" },
     "dice":          { "type": "tak-console", "line": "ONCE" },
 
+    "simplefight":         { "type": "tak-output", "expect": "health: \\d+[\\s\\S]*The game has ended" },
+    "slow-printer":        { "type": "tak-output", "expect": "Welcome to the game![\\s\\S]*The game has ended" },
+    "mimicking-animation": { "type": "tak-output", "expect": "/\\|\\\\[\\s\\S]*The game has ended" },
+
     "rock-paper-scissors": { "type": "pygbag", "timeoutMs": 150000 },
     "ophidian":            { "type": "pygbag", "timeoutMs": 150000 },
     "apex":                { "type": "pygbag", "timeoutMs": 150000 },
@@ -45,13 +49,22 @@
 
     "asn1-viz":       { "type": "strata", "timeoutMs": 120000, "hook": "window.asn1viz.status()" },
     "atman":          { "type": "strata", "timeoutMs": 180000, "hook": "window.atman.status()", "advance": "tick" },
+    "belfry-bats":    { "type": "strata", "timeoutMs": 120000, "hook": "window.belfry.status()", "act": "window.belfry.start()", "advance": "tick" },
     "beyond-nations": { "type": "strata", "timeoutMs": 120000, "path": "?start-screen=world&seed=42&no-saves=1", "canvas": "#game", "hook": "window.beyondNations.status()", "advance": "tick", "hookExpect": { "renderer": "strata", "world": true } },
+    "cauldron":       { "type": "strata", "timeoutMs": 120000, "hook": "window.cauldron.status()", "act": "window.cauldron.add(1)", "advance": "matched" },
     "env-lib-cpp":    { "type": "strata", "timeoutMs": 120000, "hook": "window.envlib.status()", "advance": "tick" },
     "familiar":       { "type": "strata", "timeoutMs": 120000, "hook": "window.familiar.status()", "advance": "tick" },
+    "ghost-lights":   { "type": "strata", "timeoutMs": 120000, "hook": "window.ghostLights.status()", "act": "document.getElementById('helpClose').click(); document.getElementById('beginBtn').click()", "advance": "time" },
+    "haunted-hayride": { "type": "strata", "timeoutMs": 120000, "hook": "window.hayride.status()", "advance": "seconds" },
     "kindling":       { "type": "strata", "timeoutMs": 120000, "hook": "window.kindling.status()", "advance": "tick" },
     "microbiome":     { "type": "strata", "timeoutMs": 180000, "ready": "window.mbReady === true" },
+    "museum":         { "type": "strata", "timeoutMs": 120000, "canvas": "#view" },
+    "old-town-walk":  { "type": "strata", "timeoutMs": 120000, "canvas": "#view", "hook": "window.oldTownWalk.status()", "hookExpect": { "ready": 1 } },
     "orrery":         { "type": "strata", "timeoutMs": 120000, "ready": "window.orreryReady === true", "hook": "window.orrery.status()", "advance": "frames" },
+    "pumpkin":        { "type": "strata", "timeoutMs": 120000, "hook": "window.pumpkin.status()", "act": "window.pumpkin.stamp(0)", "advance": "stamps" },
     "replay-player":  { "type": "strata", "timeoutMs": 120000, "canvas": "#view", "ready": "!!(window.__usdWebReplay && window.__usdWebReplay.ready)", "hook": "JSON.stringify(window.__usdWebReplay)", "advance": "frames", "hookExpect": { "engine": "strata", "errors": [] } },
+    "second-helping": { "type": "strata", "timeoutMs": 120000, "canvas": "#fair" },
+    "sisyphus":       { "type": "strata", "timeoutMs": 120000, "hook": "window.sisyphus.status()", "advance": "tick" },
     "steading":       { "type": "strata", "timeoutMs": 120000, "hook": "window.steading.status()", "advance": "tick" },
     "viron-strata":   { "type": "strata", "timeoutMs": 120000, "hook": "window.vironStrata.status()", "advance": "requests" }
   },

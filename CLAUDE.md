@@ -50,13 +50,13 @@ Leave `DISCORD_WEBHOOK_URL` unset when running locally so nothing is posted to t
 
 ## Test commands
 
-There is no unit test suite. `npm test` is the offline check (what PR CI runs): `node --check` on `watch.js` and `scripts/check-config.js`, then `node scripts/check-config.js`, which fails if a game in `games.json` names a check type that `watch.js` does not define or has a malformed field. Behaviour is verified by a real run against the live arcade:
+There is no unit test suite. `npm test` is the offline check (what PR CI runs): `node --check` on `watch.js` and `scripts/check-config.js`, then `node scripts/check-config.js`, which fails if a game in `games.json` names a check type that `watch.js` does not define or has a malformed field, then `node scripts/test-cli.js` (unknown `--only` slugs and `--profiles` exit 2; every profile UA keeps the device UA and appends the `arcade-watch` token; it serves a fake registry on 127.0.0.1 and needs no browser). Behaviour is verified by a real run against the live arcade:
 
 ```bash
 node watch.js --only <slug> [--profiles desktop,iphone]
 ```
 
-A failing check exits non-zero; a watcher that cannot run at all exits 2.
+A failing check exits non-zero; a watcher that cannot run at all exits 2, and so does a bad command line (an `--only` slug that is not a registry game, an unknown profile), which is reported without a Discord post. `watch.js` only runs `main()` when executed directly; required as a module it exports `selectGames`, `parseProfiles`, `PROFILES` and `UA_SUFFIX` for the tests.
 
 ## CI
 
@@ -70,6 +70,7 @@ A failing check exits non-zero; a watcher that cannot run at all exits 2.
 watch.js        The whole watcher: profiles, CHECKS per game type, retry, portal/API/alias checks, state diff, Discord post, summary
 games.json      Portal/registry/health URLs, defaults (timeoutMs, ignore, fatal), per-game check config, link-out games
 scripts/check-config.js       Offline validation of games.json against the check types in watch.js (npm test)
+scripts/test-cli.js           Offline tests of the CLI (--only/--profiles) and the profile user agents (npm test)
 .github/workflows/watch.yml   Daily schedule, previous-state download, artifact uploads
 .github/workflows/test.yml    PR/push check: npm ci + npm test
 package.json    Single dependency (playwright)
