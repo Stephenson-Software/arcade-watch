@@ -21,7 +21,7 @@ concurrency:
 jobs:
   watch:
     runs-on: ubuntu-latest
-    timeout-minutes: 30   # 11 Strata pages draw with SwiftShader (no GPU) and take 10-100 s each
+    timeout-minutes: 30   # 20 Strata pages draw with SwiftShader (no GPU) and take 10-100 s each
     steps:
       - uses: actions/checkout@v4
 

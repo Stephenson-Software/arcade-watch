@@ -30,7 +30,7 @@ try {
 
 const isUrl = (u) => { try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; } };
 const isStrList = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
-const REQUIRED = { 'tak-console': ['line'], cheerpj: ['input', 'line', 'expect'] };
+const REQUIRED = { 'tak-console': ['line'], 'tak-output': ['expect'], cheerpj: ['input', 'line', 'expect'] };
 
 // Returns the list of problems in `config`; empty means valid.
 function validate(config) {
@@ -58,18 +58,18 @@ function validate(config) {
     if ('timeoutMs' in g && (!Number.isFinite(g.timeoutMs) || g.timeoutMs <= 5000)) err(`${where}: timeoutMs must be a number above 5000`);
     for (const k of ['settleMs', 'holdMs', 'shotTimeoutMs', 'minFrames', 'framesWithinMs', 'minStddev']) if (k in g && !Number.isFinite(g[k])) err(`${where}: ${k} must be a number`);
     for (const k of ['keys', 'ignore', 'fatal']) if (k in g && !isStrList(g[k])) err(`${where}: ${k} must be a list of strings`);
-    for (const k of ['line', 'expect', 'input', 'terminal', 'canvas', 'readySelector', 'errorSelector', 'path', 'ready', 'hook', 'advance']) if (k in g && typeof g[k] !== 'string') err(`${where}: ${k} must be a string`);
+    for (const k of ['line', 'expect', 'input', 'terminal', 'canvas', 'readySelector', 'errorSelector', 'path', 'ready', 'hook', 'advance', 'act']) if (k in g && typeof g[k] !== 'string') err(`${where}: ${k} must be a string`);
     // watch.js reads `game.terminal || '#terminal'`, so a blank value would watch
     // the default element instead of failing.
     if (typeof g.terminal === 'string' && !g.terminal.trim()) err(`${where}: terminal must not be blank`);
     if ('hookExpect' in g && (!g.hookExpect || typeof g.hookExpect !== 'object' || Array.isArray(g.hookExpect))) err(`${where}: hookExpect must be an object of field: value`);
-    if (('advance' in g || 'hookExpect' in g) && !('hook' in g)) err(`${where}: advance and hookExpect need a hook`);
+    if (('advance' in g || 'hookExpect' in g || 'act' in g) && !('hook' in g)) err(`${where}: advance, hookExpect and act need a hook`);
     if ('clickCanvas' in g && typeof g.clickCanvas !== 'boolean') err(`${where}: clickCanvas must be true or false`);
     // Fields a check cannot run without. A cheerpj check with no `expect`, or an
     // empty one, builds a RegExp that matches anything and passes at once; an
     // empty `input` makes the locator `:enabled`, the first enabled element.
     for (const k of REQUIRED[g.type] || []) if (!(k in g) || (typeof g[k] === 'string' && !g[k].trim())) err(`${where}: a ${g.type} check needs a non-empty ${k}`);
-    if (g.type === 'cheerpj' && typeof g.expect === 'string') {
+    if ((g.type === 'cheerpj' || g.type === 'tak-output') && typeof g.expect === 'string') {
       try { new RegExp(g.expect); } catch (e) { err(`${where}: expect is not a valid regular expression (${e.message})`); }
     }
   }
@@ -96,7 +96,10 @@ const BAD = [
   ['cheerpj with empty expect', { games: { x: { type: 'cheerpj', input: '#in', line: 'a', expect: '' } } }, 'games.x: a cheerpj check needs a non-empty expect'],
   ['cheerpj with bad expect', { games: { x: { type: 'cheerpj', input: '#in', line: 'a', expect: '[' } } }, 'games.x: expect is not a valid regular expression'],
   ['blank terminal', { games: { x: { type: 'tak-console', line: 'a', terminal: '' } } }, 'games.x: terminal must not be blank'],
-  ['advance without hook', { games: { x: { type: 'strata', advance: 'tick' } } }, 'games.x: advance and hookExpect need a hook'],
+  ['advance without hook', { games: { x: { type: 'strata', advance: 'tick' } } }, 'games.x: advance, hookExpect and act need a hook'],
+  ['act without hook', { games: { x: { type: 'strata', act: 'go()' } } }, 'games.x: advance, hookExpect and act need a hook'],
+  ['tak-output without expect', { games: { x: { type: 'tak-output' } } }, 'games.x: a tak-output check needs a non-empty expect'],
+  ['tak-output with bad expect', { games: { x: { type: 'tak-output', expect: '(' } } }, 'games.x: expect is not a valid regular expression'],
   ['hookExpect as a list', { games: { x: { type: 'strata', hook: 'h()', hookExpect: [] } } }, 'games.x: hookExpect must be an object'],
   ['timeoutMs too low', { games: { x: { type: 'tak', timeoutMs: 5000 } } }, 'games.x: timeoutMs must be a number above 5000'],
   ['keys not a list', { games: { x: { type: 'emscripten', keys: 'ArrowUp' } } }, 'games.x: keys must be a list of strings'],
