@@ -65,7 +65,7 @@ Every run writes a table to the job summary (`$GITHUB_STEP_SUMMARY`) with each g
    node watch.js --only my-game --profiles iphone
    ```
 
-   Results, screenshots and `summary.md` are written to `./out`. `npm test` checks `games.json` against the check types in `watch.js`, and that each entry has the fields its type needs, without a browser or network; it is the check that runs on every pull request.
+   Results, screenshots and `summary.md` are written to `./out`. `npm test` checks `games.json` against the check types in `watch.js`, and that each entry has the fields its type needs, without a browser or network. It then runs the same rules on a set of known-bad entries in `scripts/check-config.js` and fails if any is accepted. It is the check that runs on every pull request.
 4. If none of the check types fits, add a function to `CHECKS` in `watch.js`. It receives `(page, game, ctx)` and throws (via `fail("what went wrong")`) on failure. Use `tap(ctx, locator)` so the iPhone profile taps instead of clicking.
 
 ### Strata pages
