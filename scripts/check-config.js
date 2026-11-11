@@ -106,11 +106,25 @@ const BAD = [
   ['clickCanvas as a string', { games: { x: { type: 'emscripten', clickCanvas: 'true' } } }, 'games.x: clickCanvas must be true or false'],
   ['link-out without url', { linkouts: { x: { type: 'page', title: 'X' } } }, 'linkouts.x: link-out needs an http(s) url'],
   ['defaults.ignore not a list', { defaults: { ignore: 'blanker' } }, 'defaults.ignore: must be a list of strings'],
+  ['defaults.fatal not a list', { defaults: { fatal: 'Traceback' } }, 'defaults.fatal: must be a list of strings'],
+  ['defaults.timeoutMs too low', { defaults: { timeoutMs: 5000 } }, 'defaults.timeoutMs: must be a number above 5000'],
+  ['registry not http(s)', { registry: 'ftp://example.com/api/games' }, 'registry: not an http(s) URL'],
+  ['health not a URL', { health: 'healthz' }, 'health: not an http(s) URL'],
+  ['portal.url not http(s)', { portal: { url: 'file:///play' } }, 'portal.url: not an http(s) URL'],
+  ['portal.tileSelector missing', { portal: { tileSelector: null } }, 'portal.tileSelector: missing'],
+  ['settleMs as a string', { games: { x: { type: 'emscripten', settleMs: '500' } } }, 'games.x: settleMs must be a number'],
+  ['canvas as a number', { games: { x: { type: 'emscripten', canvas: 1 } } }, 'games.x: canvas must be a string'],
+  ['link-out without title', { linkouts: { x: { type: 'page', url: 'https://example.com/' } } }, 'linkouts.x: link-out needs a title'],
+  ['link-out also a game', { games: { x: { type: 'page' } }, linkouts: { x: { type: 'page', title: 'X', url: 'https://example.com/' } } }, 'linkouts.x: also listed under games'],
 ];
 
+// Object sections (games, linkouts, defaults, portal) are merged entry by
+// entry; a top-level string such as `registry` is replaced.
 function withChange(change) {
   const copy = JSON.parse(JSON.stringify(config));
-  for (const [section, entries] of Object.entries(change)) copy[section] = { ...copy[section], ...entries };
+  for (const [section, entries] of Object.entries(change)) {
+    copy[section] = entries && typeof entries === 'object' ? { ...copy[section], ...entries } : entries;
+  }
   return copy;
 }
 
