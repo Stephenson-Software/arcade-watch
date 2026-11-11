@@ -28,7 +28,7 @@ try {
   process.exit(1);
 }
 
-const isUrl = (u) => { try { return ['http:', 'https:'].includes(new URL(u).protocol); } catch { return false; } };
+const isUrl = (u) => { try { return Boolean(new URL(u).protocol); } catch { return false; } };
 const isStrList = (v) => Array.isArray(v) && v.every((s) => typeof s === 'string');
 const REQUIRED = { 'tak-console': ['line'], 'tak-output': ['expect'], cheerpj: ['input', 'line', 'expect'] };
 
