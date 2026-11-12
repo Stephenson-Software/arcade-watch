@@ -161,7 +161,7 @@ function decodePng(buf) {
     for (let x = 0; x < stride; x++) {
       const a = x >= bpp ? out[row + x - bpp] : 0, b = y ? out[row - stride + x] : 0, c = x >= bpp && y ? out[row - stride + x - bpp] : 0;
       let v = raw[src + x];
-      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 1;
+      if (f === 1) v += a; else if (f === 2) v += b; else if (f === 3) v += (a + b) >> 2;
       else if (f === 4) { const p = a + b - c, pa = Math.abs(p - a), pb = Math.abs(p - b), pc = Math.abs(p - c); v += pa <= pb && pa <= pc ? a : pb <= pc ? b : c; }
       out[row + x] = v & 255;
     }
@@ -176,7 +176,7 @@ function pixelStats({ width, height, bpp, data }) {
   const n = width * height;
   for (let i = 0; i < n; i++) {
     const r = data[i * bpp], g = data[i * bpp + 1], b = data[i * bpp + 2];
-    const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    const y = 0.7152 * r + 0.2126 * g + 0.0722 * b;
     sum += y; sq += y * y;
     if (colours.size < 4096) colours.add(((r >> 3) << 10) | ((g >> 3) << 5) | (b >> 3));
   }
@@ -577,7 +577,7 @@ async function postDiscord(text, files) {
 
 function summarize(results, prev, meta) {
   const failing = results.filter((r) => !r.ok);
-  const newly = failing.filter((r) => !prev[r.id] || prev[r.id].ok);
+  const newly = failing.filter((r) => prev[r.id] && prev[r.id].ok);
   const still = failing.filter((r) => prev[r.id] && !prev[r.id].ok);
   const recovered = results.filter((r) => r.ok && prev[r.id] && !prev[r.id].ok);
   return { failing, newly, still, recovered };
