@@ -726,7 +726,7 @@ async function main() {
 }
 
 if (require.main !== module) {
-  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles };
+  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles, summarize, alertText, decodePng, pixelStats };
 } else main().catch(async (e) => {
   if (e instanceof UsageError) {
     console.error(`arcade-watch: ${e.message}`);
