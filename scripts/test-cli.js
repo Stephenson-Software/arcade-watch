@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Offline tests of watch.js's command line, browser profiles, alert diff and
-// blank-canvas pixel helpers: no network beyond 127.0.0.1, no browser. The
+// Offline tests of watch.js's command line, browser profiles, alert diff,
+// summary table and blank-canvas pixel helpers: no network beyond 127.0.0.1, no browser. The
 // registry is served from a local HTTP server, and the runs below must stop
 // before a browser would be launched.
 // Usage: node scripts/test-cli.js
@@ -16,7 +16,7 @@ const { devices } = require('playwright');
 
 const root = path.join(__dirname, '..');
 const zlib = require('zlib');
-const { PROFILES, UsageError, selectGames, parseProfiles, summarize, alertText, decodePng, pixelStats } = require(path.join(root, 'watch.js'));
+const { PROFILES, UsageError, selectGames, parseProfiles, summarize, stepSummary, alertText, decodePng, pixelStats } = require(path.join(root, 'watch.js'));
 
 const failures = [];
 let passed = 0;
@@ -126,6 +126,56 @@ function runWatch(args, env) {
     const lines = alertText({ failing: [], newly: [], still: [], recovered: [{ title: 'Roam', profile: 'iphone' }] }).split('\n');
     assert.ok(lines[0].startsWith('**arcade-watch: all games healthy again**'), lines[0]);
     assert.deepStrictEqual(lines.slice(1), ['- recovered Roam (iphone)']);
+  });
+
+  // The job summary table (summary.md and the Actions step summary).
+  const row = (slug, profile, extra) => ({ id: `${slug}@${profile}`, slug, title: slug[0].toUpperCase() + slug.slice(1), type: 'emscripten', url: `https://x/${slug}`, profile, ok: true, ...extra });
+  const meta = { ms: 12345, when: '2026-11-12T04:00:00.000Z' };
+  await test('stepSummary: a healthy run says so, counts the checks and ends with the screenshots line', () => {
+    const results = [row('tidewater', 'desktop'), row('tidewater', 'iphone')];
+    const md = stepSummary(results, summarize(results, {}, meta), meta);
+    const lines = md.split('\n');
+    assert.strictEqual(lines[0], '## arcade-watch: all games healthy');
+    assert.strictEqual(lines[2], '2 checks in 12s, 2026-11-12T04:00:00.000Z.');
+    assert.deepStrictEqual(lines.slice(4, 7), ['| Game | Type | Desktop | iPhone 13 |', '|---|---|---|---|', '| [Tidewater](https://x/tidewater) | emscripten | PASS | PASS |']);
+    assert.ok(md.endsWith('\n\nScreenshots: the `screenshots` artifact of this run.\n'), JSON.stringify(md.slice(-80)));
+    assert.doesNotMatch(md, /Recovered|Not in games\.json|<details>/);
+  });
+  await test('stepSummary: one row per game with retry, FAIL (pipes escaped) and missing-profile cells', () => {
+    const results = [
+      row('tidewater', 'desktop', { retried: true }), row('tidewater', 'iphone', { ok: false, error: 'a | b' }),
+      row('fishe', 'iphone'),
+    ];
+    const lines = stepSummary(results, summarize(results, {}, meta), meta).split('\n');
+    assert.strictEqual(lines[0], '## arcade-watch: 1 failing');
+    assert.deepStrictEqual(lines.slice(6, 8), [
+      '| [Tidewater](https://x/tidewater) | emscripten | PASS (retry) | **FAIL**: a \\| b |',
+      '| [Fishe](https://x/fishe) | emscripten | - | PASS |',
+    ]);
+  });
+  await test('stepSummary: http and portal checks fill the Desktop column only', () => {
+    const results = [
+      { id: 'api-healthz', slug: 'api-healthz', title: 'api.play healthz', type: 'http', url: 'https://api/healthz', profile: 'http', ok: false, error: 'HTTP 502' },
+      { ...row('portal', 'desktop'), type: 'portal', title: 'Portal' },
+    ];
+    const lines = stepSummary(results, summarize(results, {}, meta), meta).split('\n');
+    assert.deepStrictEqual(lines.slice(6, 8), [
+      '| [api.play healthz](https://api/healthz) | http | **FAIL**: HTTP 502 | |',
+      '| [Portal](https://x/portal) | portal | PASS | |',
+    ]);
+  });
+  await test('stepSummary: recoveries, unconfigured games once each, and console errors on passing checks only', () => {
+    const results = [
+      row('tidewater', 'desktop', { errors: [{ text: 'use `x`' }, { text: 'y'.repeat(200) }] }),
+      row('tidewater', 'iphone', { ok: false, error: 'boom', errors: [{ text: 'hidden' }] }),
+      row('roam', 'desktop', { unconfigured: true }), row('roam', 'iphone', { unconfigured: true, errors: [] }),
+    ];
+    const s = summarize(results, { 'roam@desktop': { ok: false } }, meta);
+    const md = stepSummary(results, s, meta);
+    assert.match(md, /\n\nRecovered: roam@desktop\n/);
+    assert.match(md, /\n\nNot in games\.json \(only a page-load check ran; add them\): roam\n/);
+    assert.ok(md.includes(`\n\n<details><summary>Console errors on passing checks (not fatal)</summary>\n\n- tidewater@desktop: \`use 'x'\`, \`${'y'.repeat(120)}\`\n\n</details>\n`), md);
+    assert.doesNotMatch(md, /hidden/, 'a failing check\'s console errors are not listed');
   });
 
   // The strata blank-canvas verdict decodes Chromium's PNG capture itself.
