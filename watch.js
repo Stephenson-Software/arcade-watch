@@ -589,7 +589,7 @@ function stepSummary(results, s, meta) {
     if (!byGame.has(r.slug)) byGame.set(r.slug, { title: r.title, type: r.type, url: r.url, cells: {} });
     byGame.get(r.slug).cells[r.profile] = r;
   }
-  const cell = (r) => !r ? '-' : (r.ok ? (r.retried ? 'PASS (retry)' : 'PASS') : `**FAIL**: ${r.error.replace(/\|/g, '\\|')}`);
+  const cell = (r) => !r ? '-' : (r.ok ? (r.retried ? 'PASS (retry)' : 'PASS') : `**FAIL**: ${r.error}`);
   const lines = [
     `## arcade-watch: ${s.failing.length ? `${s.failing.length} failing` : 'all games healthy'}`,
     '',
@@ -606,7 +606,7 @@ function stepSummary(results, s, meta) {
   if (s.recovered.length) lines.push('', `Recovered: ${s.recovered.map((r) => r.id).join(', ')}`);
   const unconf = [...new Set(results.filter((r) => r.unconfigured).map((r) => r.slug))];
   if (unconf.length) lines.push('', `Not in games.json (only a page-load check ran; add them): ${unconf.join(', ')}`);
-  const noisy = results.filter((r) => r.ok && r.errors && r.errors.length);
+  const noisy = results.filter((r) => r.errors && r.errors.length);
   if (noisy.length) {
     lines.push('', '<details><summary>Console errors on passing checks (not fatal)</summary>', '');
     for (const r of noisy) lines.push(`- ${r.id}: ${r.errors.map((e) => '`' + e.text.replace(/`/g, "'").slice(0, 120) + '`').join(', ')}`);
