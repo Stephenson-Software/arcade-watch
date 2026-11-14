@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Offline tests of watch.js's command line, browser profiles, alert diff,
-// summary table and blank-canvas pixel helpers: no network beyond 127.0.0.1, no browser. The
+// state.json carry-forward, summary table and blank-canvas pixel helpers: no network beyond 127.0.0.1, no browser. The
 // registry is served from a local HTTP server, and the runs below must stop
 // before a browser would be launched.
 // Usage: node scripts/test-cli.js
@@ -16,7 +16,7 @@ const { devices } = require('playwright');
 
 const root = path.join(__dirname, '..');
 const zlib = require('zlib');
-const { PROFILES, UsageError, selectGames, parseProfiles, summarize, stepSummary, alertText, decodePng, pixelStats } = require(path.join(root, 'watch.js'));
+const { PROFILES, UsageError, selectGames, parseProfiles, summarize, nextState, stepSummary, alertText, decodePng, pixelStats } = require(path.join(root, 'watch.js'));
 
 const failures = [];
 let passed = 0;
@@ -126,6 +126,30 @@ function runWatch(args, env) {
     const lines = alertText({ failing: [], newly: [], still: [], recovered: [{ title: 'Roam', profile: 'iphone' }] }).split('\n');
     assert.ok(lines[0].startsWith('**arcade-watch: all games healthy again**'), lines[0]);
     assert.deepStrictEqual(lines.slice(1), ['- recovered Roam (iphone)']);
+  });
+
+  // state.json: what the next run diffs against.
+  const T0 = '2026-11-01T04:00:00.000Z', T1 = '2026-11-02T04:00:00.000Z';
+  await test('nextState: a new failure starts now, an ongoing one keeps its start, a pass has none', () => {
+    const results = [
+      { id: 'a@desktop', ok: false, error: 'new' }, { id: 'b@desktop', ok: false, error: 'again' },
+      { id: 'c@desktop', ok: true }, { id: 'd@iphone', ok: false, error: 'back' },
+    ];
+    const prev = { 'b@desktop': { ok: false, error: 'first', since: T0 }, 'c@desktop': { ok: false, error: 'old', since: T0 }, 'd@iphone': { ok: true } };
+    const state = nextState(results, prev, T1);
+    assert.strictEqual(state.when, T1);
+    assert.deepStrictEqual(state.checks['a@desktop'], { ok: false, error: 'new', since: T1 });
+    assert.deepStrictEqual(state.checks['b@desktop'], { ok: false, error: 'again', since: T0 }, 'still failing: since is kept, error is the latest');
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(state.checks['c@desktop'])), { ok: true }, 'recovered: no since in state.json');
+    assert.deepStrictEqual(state.checks['d@iphone'], { ok: false, error: 'back', since: T1 }, 'failing again after a pass starts a new failure');
+  });
+  await test('nextState: checks that did not run (a --only run) are carried forward unchanged', () => {
+    const prev = { 'a@desktop': { ok: false, error: 'down', since: T0 }, 'b@iphone': { ok: true } };
+    const state = nextState([{ id: 'c@desktop', ok: true }], prev, T1);
+    assert.deepStrictEqual(Object.keys(state.checks).sort(), ['a@desktop', 'b@iphone', 'c@desktop']);
+    assert.deepStrictEqual(state.checks['a@desktop'], { ok: false, error: 'down', since: T0 });
+    assert.deepStrictEqual(state.checks['b@iphone'], { ok: true });
+    assert.deepStrictEqual(prev, { 'a@desktop': { ok: false, error: 'down', since: T0 }, 'b@iphone': { ok: true } }, 'the previous state is not modified');
   });
 
   // The job summary table (summary.md and the Actions step summary).
