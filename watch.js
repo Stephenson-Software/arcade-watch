@@ -588,7 +588,7 @@ function summarize(results, prev, meta) {
 // A failure keeps the time it started for as long as it keeps failing.
 function nextState(results, prev, when) {
   const checks = { ...prev };
-  for (const r of results) checks[r.id] = { ok: r.ok, error: r.error, since: r.ok ? undefined : (prev[r.id] && !prev[r.id].ok ? prev[r.id].since : when) };
+  for (const r of results) checks[r.id] = { ok: r.ok, error: r.error, since: r.ok ? undefined : (prev[r.id] ? prev[r.id].since : when) };
   return { when, checks };
 }
 
