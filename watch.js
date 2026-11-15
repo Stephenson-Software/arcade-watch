@@ -583,6 +583,15 @@ function summarize(results, prev, meta) {
   return { failing, newly, still, recovered };
 }
 
+// The checks recorded in state.json. Checks that did not run this time (e.g. a
+// --only run) are carried forward, so a partial run does not fake a recovery.
+// A failure keeps the time it started for as long as it keeps failing.
+function nextState(results, prev, when) {
+  const checks = { ...prev };
+  for (const r of results) checks[r.id] = { ok: r.ok, error: r.error, since: r.ok ? undefined : (prev[r.id] && !prev[r.id].ok ? prev[r.id].since : when) };
+  return { when, checks };
+}
+
 function stepSummary(results, s, meta) {
   const byGame = new Map();
   for (const r of results) {
@@ -707,11 +716,7 @@ async function main() {
   const prev = loadPrev();
   const s = summarize(results, prev, meta);
 
-  // state.json carries forward results for checks that did not run this time
-  // (e.g. a --only run), so a partial run does not fake a recovery.
-  const checks = { ...prev };
-  for (const r of results) checks[r.id] = { ok: r.ok, error: r.error, since: r.ok ? undefined : (prev[r.id] && !prev[r.id].ok ? prev[r.id].since : meta.when) };
-  fs.writeFileSync(path.join(OUT_DIR, 'state.json'), JSON.stringify({ when: meta.when, checks }, null, 2));
+  fs.writeFileSync(path.join(OUT_DIR, 'state.json'), JSON.stringify(nextState(results, prev, meta.when), null, 2));
   fs.writeFileSync(path.join(OUT_DIR, 'results.json'), JSON.stringify({ ...meta, results }, null, 2));
   const md = stepSummary(results, s, meta);
   fs.writeFileSync(path.join(OUT_DIR, 'summary.md'), md);
@@ -726,7 +731,7 @@ async function main() {
 }
 
 if (require.main !== module) {
-  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles, summarize, stepSummary, alertText, decodePng, pixelStats };
+  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles, summarize, nextState, stepSummary, alertText, decodePng, pixelStats };
 } else main().catch(async (e) => {
   if (e instanceof UsageError) {
     console.error(`arcade-watch: ${e.message}`);
