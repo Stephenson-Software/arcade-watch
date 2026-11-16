@@ -684,6 +684,9 @@ async function main() {
     });
   }
   for (const [slug, l] of linkouts) games.push({ slug, aliases: [], ...CONFIG.defaults, ...l });
+  // Sites that belong to a game but are not on the portal (a game's community
+  // site, say): checked like a link-out, never counted as a portal tile.
+  for (const [slug, s] of Object.entries(CONFIG.sites || {})) games.push({ slug, aliases: [], ...CONFIG.defaults, ...s });
   for (const g of games) g.timeoutMs = g.timeoutMs || CONFIG.defaults.timeoutMs;
   const expectedTiles = registry.length + linkouts.length;
   const stale = Object.keys(CONFIG.games).filter((s) => !registry.some((g) => g.slug === s));

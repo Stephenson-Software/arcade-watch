@@ -81,6 +81,12 @@ function validate(config) {
     checkGame(`linkouts.${slug}`, g, true);
     if (config.games && slug in config.games) err(`linkouts.${slug}: also listed under games`);
   }
+  // Optional: sites that belong to a game but are not portal tiles.
+  if ('sites' in config && (!config.sites || typeof config.sites !== 'object' || Array.isArray(config.sites))) err('sites: must be an object');
+  for (const [slug, g] of Object.entries(config.sites || {})) {
+    checkGame(`sites.${slug}`, g, true);
+    if ((config.games && slug in config.games) || (config.linkouts && slug in config.linkouts)) err(`sites.${slug}: also listed under games or linkouts`);
+  }
   return errors;
 }
 
@@ -115,10 +121,12 @@ const BAD = [
   ['settleMs as a string', { games: { x: { type: 'emscripten', settleMs: '500' } } }, 'games.x: settleMs must be a number'],
   ['canvas as a number', { games: { x: { type: 'emscripten', canvas: 1 } } }, 'games.x: canvas must be a string'],
   ['link-out without title', { linkouts: { x: { type: 'page', url: 'https://example.com/' } } }, 'linkouts.x: link-out needs a title'],
+  ['site without url', { sites: { x: { type: 'page', title: 'X' } } }, 'sites.x: link-out needs an http(s) url'],
+  ['site also a link-out', { linkouts: { x: { type: 'page', title: 'X', url: 'https://example.com/' } }, sites: { x: { type: 'page', title: 'X', url: 'https://example.com/' } } }, 'sites.x: also listed under games or linkouts'],
   ['link-out also a game', { games: { x: { type: 'page' } }, linkouts: { x: { type: 'page', title: 'X', url: 'https://example.com/' } } }, 'linkouts.x: also listed under games'],
 ];
 
-// Object sections (games, linkouts, defaults, portal) are merged entry by
+// Object sections (games, linkouts, sites, defaults, portal) are merged entry by
 // entry; a top-level string such as `registry` is replaced.
 function withChange(change) {
   const copy = JSON.parse(JSON.stringify(config));
@@ -142,6 +150,6 @@ if (selfTest.length) {
   for (const e of selfTest) console.error(`FAIL ${e}`);
   process.exit(1);
 }
-const n = Object.keys(config.games).length + Object.keys(config.linkouts).length;
+const n = Object.keys(config.games).length + Object.keys(config.linkouts).length + Object.keys(config.sites || {}).length;
 console.log(`games.json OK: ${n} entries, check types used all defined (${[...types].sort().join(', ')})`);
 console.log(`self-test OK: all ${BAD.length} known-bad configs rejected`);
