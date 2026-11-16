@@ -66,9 +66,13 @@
     "second-helping": { "type": "strata", "timeoutMs": 120000, "canvas": "#fair" },
     "sisyphus":       { "type": "strata", "timeoutMs": 120000, "hook": "window.sisyphus.status()", "advance": "tick" },
     "steading":       { "type": "strata", "timeoutMs": 120000, "hook": "window.steading.status()", "advance": "tick" },
-    "viron-strata":   { "type": "strata", "timeoutMs": 120000, "hook": "window.vironStrata.status()", "advance": "requests" }
+    "viron-strata":   { "type": "strata", "timeoutMs": 120000, "hook": "window.vironStrata.status()", "advance": "requests" },
+    "primordial-rise": { "type": "strata", "timeoutMs": 120000, "canvas": "#view", "ready": "!!window.__pr && !document.getElementById('retry').disabled", "hook": "JSON.stringify({signIn: !document.getElementById('login').hidden, serverUp: !document.getElementById('login').classList.contains('down')})", "hookExpect": { "signIn": true, "serverUp": true } }
   },
   "linkouts": {
     "barony": { "title": "Barony", "url": "https://barony.preponderous.org", "type": "page", "expect": "Log In" }
+  },
+  "sites": {
+    "primordial-rise-community": { "title": "Primordial Rise community", "url": "https://primordial-rise-community.play.danielstephenson.dev/creatures", "type": "page", "expect": "Sort by" }
   }
 }

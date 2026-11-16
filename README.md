@@ -17,8 +17,12 @@ The game list is read live from the arcade registry, <https://play.danielstephen
 | `emscripten` / `canvas` | Frog Hopper, Tic Tac Toe (SDL), SDL Sketches (bouncing rectangle), Roam | a sized canvas is visible; its picture changes over time or after input (`keys`, `clickCanvas`); optional `readySelector`/`errorSelector` |
 | `cheerpj` | Tic Tac Toe (Java), Interakt | Java enables the input (`input`); one command (`line`) produces output matching `expect` |
 | `react-ttt` | Tic Tac Toe (Web) | clicking squares 0,3,1,4,2 shows "Winner: X" |
-| `strata` | asn1-viz, Atman, Beyond Nations, env-lib-cpp, Familiar, Kindling, Microbiome, Orrery, Replay Player, Steading, Viron (Strata), Sisyphus, Old Town Walk, Museum, Second Helping, and the Halloween games (Belfry Bats, Cauldron, Ghost Lights, Haunted Hayride, Pumpkin) | the page instantiates wasm, gets a WebGL 2 context and draws; at least `minFrames` (3) animation frames with WebGL 2 draw calls arrive within `framesWithinMs` (30 s); a CDP capture of the canvas is not one flat colour (luma standard deviation at least `minStddev`, default 6); no Strata error on the console at any level (`strata error:`, `STRATA_ERROR_*`, a failed `strata_*` call); the game's test hook (`hook`) answers with an object, matches `hookExpect` and its `advance` counter moves on (after `act`, if the game idles on a title screen until started) |
-| `page` | Barony (needs an account) | the page loads with HTTP < 400 and shows `expect` (without `expect`, any text) |
+| `strata` | asn1-viz, Atman, Beyond Nations, env-lib-cpp, Familiar, Kindling, Microbiome, Orrery, Replay Player, Steading, Viron (Strata), Primordial Rise, Sisyphus, Old Town Walk, Museum, Second Helping, and the Halloween games (Belfry Bats, Cauldron, Ghost Lights, Haunted Hayride, Pumpkin) | the page instantiates wasm, gets a WebGL 2 context and draws; at least `minFrames` (3) animation frames with WebGL 2 draw calls arrive within `framesWithinMs` (30 s); a CDP capture of the canvas is not one flat colour (luma standard deviation at least `minStddev`, default 6); no Strata error on the console at any level (`strata error:`, `STRATA_ERROR_*`, a failed `strata_*` call); the game's test hook (`hook`) answers with an object, matches `hookExpect` and its `advance` counter moves on (after `act`, if the game idles on a title screen until started) |
+| `page` | Barony (needs an account), the Primordial Rise community site | the page loads with HTTP < 400 and shows `expect` (without `expect`, any text) |
+
+Primordial Rise is online-only, so its check stops at the sign-in screen. It passes when the screen shows and the game has reached its server: the `ready` expression waits for the client's own server check to finish, and the hook reports `serverUp: false` when that check failed.
+
+`games.json` may also list **sites**: pages that belong to a game but are not portal tiles, such as the Primordial Rise community site. A site needs a `title` and `url` like a link-out and is checked the same way, but it is never counted as a portal tile. The community site's check loads its board (`/creatures`) and expects "Sort by", which the site shows only when it could read the board from the game's server.
 
 These checks run on every run as well:
 
@@ -57,7 +61,7 @@ Every run writes a table to the job summary (`$GITHUB_STEP_SUMMARY`) with each g
    "my-game": { "type": "tak-console", "line": "HELLO" }
    ```
 
-   A link-out game goes under `linkouts` and needs a `title` and `url` as well.
+   A link-out game goes under `linkouts` and needs a `title` and `url` as well. A site that is not on the portal goes under `sites`, with the same fields.
 3. Run it locally against the live site:
 
    ```sh

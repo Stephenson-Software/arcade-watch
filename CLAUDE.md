@@ -68,7 +68,7 @@ A failing check exits non-zero; a watcher that cannot run at all exits 2, and so
 
 ```
 watch.js        The whole watcher: profiles, CHECKS per game type, retry, portal/API/alias checks, state diff, Discord post, summary
-games.json      Portal/registry/health URLs, defaults (timeoutMs, ignore, fatal), per-game check config, link-out games
+games.json      Portal/registry/health URLs, defaults (timeoutMs, ignore, fatal), per-game check config, link-out games, sites (a game's pages that are not portal tiles)
 scripts/check-config.js       Offline validation of games.json against the check types in watch.js (npm test)
 scripts/test-cli.js           Offline tests of the CLI (--only/--profiles) and the profile user agents (npm test)
 .github/workflows/watch.yml   Daily schedule, previous-state download, artifact uploads
@@ -84,7 +84,7 @@ LICENSE         Stephenson-NC
 - Use `tap(ctx, locator)` rather than `locator.click()` so the iPhone profile taps.
 - Strata (WebGL 2) pages use the `strata` check: open with `waitUntil: 'commit'`, count frames with the init-script probe and capture with `cdpShot` (CDP `Page.captureScreenshot`). Never assert a frame rate: CI draws with SwiftShader at 1-3 fps.
 - Use the `until(...)` / `waitForChange(...)` helpers for polling instead of fixed sleeps where possible.
-- Per-game options live in `games.json`, not in code. The game list itself comes live from the registry (`/api/games`); `games.json` only adds check config and link-outs.
+- Per-game options live in `games.json`, not in code. The game list itself comes live from the registry (`/api/games`); `games.json` only adds check config, link-outs and sites (pages such as a game's community site, checked but never counted as portal tiles).
 
 ## Do / Don't
 
