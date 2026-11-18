@@ -661,6 +661,31 @@ function parseProfiles(value) {
   return profiles;
 }
 
+// The games a full run checks, from the live registry and games.json, and the
+// number of portal tiles to expect.
+function gameList(registry, config) {
+  // A link-out that has since joined the registry is one tile and one game:
+  // its entry configures the registry game instead of adding a second one.
+  const linkouts = Object.entries(config.linkouts).filter(([slug]) => !registry.some((g) => g.slug === slug));
+  const promoted = Object.keys(config.linkouts).filter((s) => registry.some((g) => g.slug === s));
+  const games = [];
+  for (const g of registry) {
+    const conf = config.games[g.slug] || config.linkouts[g.slug];
+    games.push({
+      slug: g.slug, title: g.title, url: g.url, aliases: g.aliases || [],
+      ...config.defaults, ...(conf || { type: 'page', unconfigured: true }),
+    });
+  }
+  for (const [slug, l] of linkouts) games.push({ slug, aliases: [], ...config.defaults, ...l });
+  // Sites that belong to a game but are not on the portal (a game's community
+  // site, say): checked like a link-out, never counted as a portal tile.
+  for (const [slug, s] of Object.entries(config.sites || {})) games.push({ slug, aliases: [], ...config.defaults, ...s });
+  for (const g of games) g.timeoutMs = g.timeoutMs || config.defaults.timeoutMs;
+  const expectedTiles = registry.length + linkouts.length;
+  const stale = Object.keys(config.games).filter((s) => !registry.some((g) => g.slug === s));
+  return { games, expectedTiles, promoted, stale };
+}
+
 async function main() {
   const t0 = Date.now();
   fs.mkdirSync(SHOTS, { recursive: true });
@@ -670,26 +695,8 @@ async function main() {
   const profiles = parseProfiles(arg('profiles'));
 
   const registry = (await fetchJson(CONFIG.registry)).games;
-  // A link-out that has since joined the registry is one tile and one game:
-  // its entry configures the registry game instead of adding a second one.
-  const linkouts = Object.entries(CONFIG.linkouts).filter(([slug]) => !registry.some((g) => g.slug === slug));
-  const promoted = Object.keys(CONFIG.linkouts).filter((s) => registry.some((g) => g.slug === s));
+  const { games, expectedTiles, promoted, stale } = gameList(registry, CONFIG);
   if (promoted.length) console.log(`note: link-outs now in the registry (move them under games): ${promoted.join(', ')}`);
-  const games = [];
-  for (const g of registry) {
-    const conf = CONFIG.games[g.slug] || CONFIG.linkouts[g.slug];
-    games.push({
-      slug: g.slug, title: g.title, url: g.url, aliases: g.aliases || [],
-      ...CONFIG.defaults, ...(conf || { type: 'page', unconfigured: true }),
-    });
-  }
-  for (const [slug, l] of linkouts) games.push({ slug, aliases: [], ...CONFIG.defaults, ...l });
-  // Sites that belong to a game but are not on the portal (a game's community
-  // site, say): checked like a link-out, never counted as a portal tile.
-  for (const [slug, s] of Object.entries(CONFIG.sites || {})) games.push({ slug, aliases: [], ...CONFIG.defaults, ...s });
-  for (const g of games) g.timeoutMs = g.timeoutMs || CONFIG.defaults.timeoutMs;
-  const expectedTiles = registry.length + linkouts.length;
-  const stale = Object.keys(CONFIG.games).filter((s) => !registry.some((g) => g.slug === s));
   if (stale.length) console.log(`note: in games.json but not in the registry: ${stale.join(', ')}`);
 
   const selected = selectGames(games, only);
@@ -734,7 +741,7 @@ async function main() {
 }
 
 if (require.main !== module) {
-  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles, summarize, nextState, stepSummary, alertText, decodePng, pixelStats };
+  module.exports = { PROFILES, UA_SUFFIX, UsageError, selectGames, parseProfiles, gameList, summarize, nextState, stepSummary, alertText, decodePng, pixelStats };
 } else main().catch(async (e) => {
   if (e instanceof UsageError) {
     console.error(`arcade-watch: ${e.message}`);

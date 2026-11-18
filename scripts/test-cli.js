@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Offline tests of watch.js's command line, browser profiles, alert diff,
-// state.json carry-forward, summary table and blank-canvas pixel helpers: no network beyond 127.0.0.1, no browser. The
+// Offline tests of watch.js's command line, browser profiles, game list and
+// portal tile count, alert diff, state.json carry-forward, summary table and blank-canvas pixel helpers: no network beyond 127.0.0.1, no browser. The
 // registry is served from a local HTTP server, and the runs below must stop
 // before a browser would be launched.
 // Usage: node scripts/test-cli.js
@@ -16,7 +16,7 @@ const { devices } = require('playwright');
 
 const root = path.join(__dirname, '..');
 const zlib = require('zlib');
-const { PROFILES, UsageError, selectGames, parseProfiles, summarize, nextState, stepSummary, alertText, decodePng, pixelStats } = require(path.join(root, 'watch.js'));
+const { PROFILES, UsageError, selectGames, parseProfiles, gameList, summarize, nextState, stepSummary, alertText, decodePng, pixelStats } = require(path.join(root, 'watch.js'));
 
 const failures = [];
 let passed = 0;
@@ -91,6 +91,39 @@ function runWatch(args, env) {
   await test('profile iphone: Mobile Safari tokens intact', () => {
     assert.match(PROFILES.iphone.userAgent, /iPhone; CPU iPhone OS [\d_]+ like Mac OS X\) AppleWebKit\/[\d.]+ \(KHTML, like Gecko\) Version\/[\d.]+ Mobile\/\w+ Safari\/[\d.]+ /);
     assert.doesNotMatch(PROFILES.iphone.userAgent, /chrome|android/i, 'Safari sniffers rule out chrome/android');
+  });
+
+  // The game list and the portal tile count: registry games and link-outs are
+  // tiles, sites are not, and a link-out that joined the registry is one tile.
+  const cfg = {
+    defaults: { timeoutMs: 45000, ignore: ['benign'] },
+    games: { tidewater: { type: 'emscripten', timeoutMs: 90000 }, gone: { type: 'page' } },
+    linkouts: { fishe: { type: 'page', title: 'Fishe', url: 'https://fishe/' }, roam: { type: 'page', title: 'Roam', url: 'https://roam/' } },
+    sites: { 'tidewater-community': { type: 'page', title: 'Tidewater community', url: 'https://community/', expect: 'Board' } },
+  };
+  const reg = [
+    { slug: 'tidewater', title: 'Tidewater', url: 'https://tidewater/', aliases: ['tw.example'] },
+    { slug: 'roam', title: 'Roam (registry)', url: 'https://roam-registry/' },
+    { slug: 'newgame', title: 'New game', url: 'https://newgame/' },
+  ];
+  await test('gameList: registry games, then remaining link-outs, then sites', () => {
+    const { games: list } = gameList(reg, cfg);
+    assert.deepStrictEqual(list.map((g) => g.slug), ['tidewater', 'roam', 'newgame', 'fishe', 'tidewater-community']);
+  });
+  await test('gameList: sites are checked but not counted as portal tiles; a promoted link-out counts once', () => {
+    const r = gameList(reg, cfg);
+    assert.strictEqual(r.expectedTiles, 4, 'three registry games + the fishe link-out');
+    assert.deepStrictEqual(r.promoted, ['roam']);
+    assert.deepStrictEqual(r.stale, ['gone']);
+    assert.strictEqual(gameList(reg, { ...cfg, sites: undefined }).expectedTiles, 4, 'no sites section: same count');
+  });
+  await test('gameList: per-game config over defaults, unconfigured games get a page check, timeouts filled in', () => {
+    const by = Object.fromEntries(gameList(reg, cfg).games.map((g) => [g.slug, g]));
+    assert.deepStrictEqual([by.tidewater.type, by.tidewater.timeoutMs, by.tidewater.ignore, by.tidewater.aliases], ['emscripten', 90000, ['benign'], ['tw.example']]);
+    assert.deepStrictEqual([by.roam.type, by.roam.url, by.roam.title], ['page', 'https://roam/', 'Roam'], 'a promoted link-out keeps its games.json entry');
+    assert.deepStrictEqual([by.newgame.type, by.newgame.unconfigured, by.newgame.timeoutMs, by.newgame.aliases], ['page', true, 45000, []]);
+    assert.deepStrictEqual([by['tidewater-community'].expect, by['tidewater-community'].timeoutMs, by['tidewater-community'].aliases], ['Board', 45000, []]);
+    assert.strictEqual(by.fishe.unconfigured, undefined);
   });
 
   // The alert diff: what is new, what is still failing, what recovered.
