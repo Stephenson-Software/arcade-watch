@@ -681,7 +681,7 @@ function gameList(registry, config) {
   // site, say): checked like a link-out, never counted as a portal tile.
   for (const [slug, s] of Object.entries(config.sites || {})) games.push({ slug, aliases: [], ...config.defaults, ...s });
   for (const g of games) g.timeoutMs = g.timeoutMs || config.defaults.timeoutMs;
-  const expectedTiles = registry.length + linkouts.length;
+  const expectedTiles = registry.length + linkouts.length + Object.keys(config.sites || {}).length;
   const stale = Object.keys(config.games).filter((s) => !registry.some((g) => g.slug === s));
   return { games, expectedTiles, promoted, stale };
 }
