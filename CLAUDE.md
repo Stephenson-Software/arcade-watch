@@ -73,6 +73,7 @@ scripts/check-config.js       Offline validation of games.json against the check
 scripts/test-cli.js           Offline tests of the CLI (--only/--profiles) and the profile user agents (npm test)
 .github/workflows/watch.yml   Daily schedule, previous-state download, artifact uploads
 .github/workflows/test.yml    PR/push check: npm ci + npm test
+docs/screenshots/             README images, rebuilt from a real scheduled run by `node docs/screenshots/render.js <run-id>` (needs gh; not part of npm test)
 package.json    Single dependency (playwright)
 LICENSE         Stephenson-NC
 ```

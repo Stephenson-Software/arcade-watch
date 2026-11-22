@@ -4,6 +4,46 @@ A daily health check for every game on [danielstephenson.dev/play](https://danie
 
 Every day at 04:00 UTC, a GitHub Actions workflow opens each game in headless Chromium, twice: once as a desktop browser and once with Playwright's **iPhone 13** profile. The iPhone profile sends a Mobile Safari user agent and uses touch, so games that sniff the UA (Pyodide does) take their iOS code path. Every browser context appends ` arcade-watch-monitor (+https://github.com/Stephenson-Software/arcade-watch)` to the device's user agent, leaving the device's own tokens intact, so the arcade does not count these loads as plays. The workflow checks that each game actually **starts** and **responds to input**. Loading the page is not enough to pass. When a check fails, or recovers after failing, it posts to Discord.
 
+![Eight game screenshots in a grid, each captioned with the game's title, its check type and a green PASS with the time the check took: Tidewater (tak), Guess My Word (tak-console), SimpleFight (tak-output), Tic Tac Toe Java (cheerpj), Frog Hopper (emscripten), and three Strata pages: Orrery, Second Helping and steading](docs/screenshots/checks-desktop.jpg)
+
+*The last screenshot of eight desktop checks from the scheduled run of 2026-11-14 (91/91 checks passed), taken from that run's `screenshots` artifact.*
+
+## Screenshots
+
+Every image below comes from one real scheduled run of `watch.yml` on `main` (2026-11-14). Nothing was mocked up.
+
+![Six phone-shaped screenshots from the iPhone 13 profile, each with a green PASS: Night Ferry, Kreatures, Frog Hopper with its on-screen arrow pad, Tic Tac Toe (SDL), Pumpkin and the steading replay player](docs/screenshots/checks-iphone.jpg)
+
+*The same run on the iPhone 13 profile: Mobile Safari user agent, touch input and a 390 px wide viewport. Games that sniff the user agent take their phone code path here.*
+
+<img src="docs/screenshots/run-log.png" width="560" alt="Terminal output of node watch.js: green PASS lines for the API health check, the portal tile count, three alias hosts and per-game checks such as apex@desktop and interakt@iphone with their times, a marked gap of 68 lines, then the closing line 91/91 checks passed in 509s">
+
+*The watcher's own log lines from that run (the Actions timestamp prefix removed; 68 lines in the middle elided).*
+
+<img src="docs/screenshots/job-summary.png" width="560" alt="The run's job summary titled arcade-watch: all games healthy, with a table of every game, its check type and PASS in the Desktop and iPhone 13 columns">
+
+*The job summary table that `watch.js` writes to `$GITHUB_STEP_SUMMARY` and `out/summary.md`, rebuilt from that run's `results.json` with the same `stepSummary()` function.*
+
+When checks fail, one Discord message lists them. This is the text `alertText()` builds from the scheduled run of 2026-11-21 compared with the state left by the run before it (screenshots of up to 4 failing checks are attached to the post):
+
+```text
+**arcade-watch: 12 check(s) failing** - run + screenshots: https://github.com/Stephenson-Software/arcade-watch/actions/runs/44901419706
+- NEW FAIL Apex (desktop): locator.screenshot: Timeout 11995.303999999996ms exceeded.
+- NEW FAIL Apex (iphone): locator.screenshot: Timeout 14882.197ms exceeded.
+- NEW FAIL Ophidian (iphone): locator.screenshot: Timeout 14677.942000000003ms exceeded.
+- NEW FAIL Tic-Tak-Toe (desktop): locator.screenshot: Timeout 12136.851000000024ms exceeded.
+- NEW FAIL Tic-Tak-Toe (iphone): locator.screenshot: Timeout 10415.274000000005ms exceeded.
+- NEW FAIL Tic Tac Toe (SDL) (desktop): locator.screenshot: Timeout 4796.572000000015ms exceeded.
+- NEW FAIL Tic Tac Toe (SDL) (iphone): locator.screenshot: Timeout 5144.550999999978ms exceeded.
+- NEW FAIL Tic Tac Toe (desktop): locator.click: Timeout 30000ms exceeded.
+- NEW FAIL Tic Tac Toe (iphone): locator.tap: Timeout 30000ms exceeded.
+- still failing danielstephenson.dev/play (desktop): 45 tiles shown, expected 47 (registry games + link-outs)
+- still failing Primordial Rise (demo) (desktop): hook signIn is false, expected true
+- still failing Primordial Rise (demo) (iphone): hook signIn is false, expected true
+```
+
+**Regenerating screenshots:** `node docs/screenshots/render.js <run-id>` downloads a run's `screenshots` artifact and log with `gh` and rewrites the four images above (pick a green scheduled run on `main`; artifacts are kept 14 days).
+
 ## What is checked
 
 The game list is read live from the arcade registry, <https://play.danielstephenson.dev/api/games>. The portal's link-out games (currently Barony) are added from `games.json`. If a link-out's slug also appears in the registry, it is counted once: its `linkouts` entry (including its `url`) configures that registry game, and the log notes that the entry should move under `games`. Each game has a check type:
@@ -40,6 +80,17 @@ Across all games:
 ## Alerting
 
 There is no database. State is carried from run to run as a workflow artifact:
+
+```mermaid
+flowchart LR
+  prev[("state artifact<br/>from the last full run on main")] -->|gh run download| watch
+  reg["play.danielstephenson.dev/api/games<br/>+ games.json"] --> watch["node watch.js<br/>desktop + iPhone 13 checks"]
+  watch --> out["out/results.json<br/>out/screenshots/<br/>out/summary.md"]
+  watch --> state["out/state.json"]
+  state -->|full run on main only| next[("state artifact<br/>for the next run")]
+  watch -->|new fail, still failing<br/>or recovered| discord["one Discord message<br/>+ up to 4 screenshots"]
+  out --> art["screenshots artifact<br/>+ job summary"]
+```
 
 1. Every full run on `main` uploads `out/state.json` as the `state` artifact (kept 30 days). The file records pass/fail for each check and when each failure started.
 2. The next run downloads the newest `state` artifact with `gh run download`, using the job's own `GITHUB_TOKEN` (`actions: read`).
